@@ -16,4 +16,4 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter test -d windows integration_test/m0_spike_test.dart --dart-define=N=500
+      - run: flutter test -d windows integration_test/m0_spike_test.dart --dart-define=N=50

@@ -8,6 +8,7 @@
 #include <windows.h>
 #include <wrl/client.h>
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <string>
@@ -78,7 +79,9 @@ std::string ToUtf8(const std::wstring& w) {
 }
 
 // 휴지통 이동. 실패 코드와 메시지를 돌려주며 성공 시 휴지통 안의 경로를 채운다.
-std::optional<std::string> MoveToRecycleBin(const std::wstring& path, std::wstring* recycled_path) {
+std::optional<std::string> MoveToRecycleBin(std::wstring path, std::wstring* recycled_path) {
+  // Shell API는 슬래시가 섞인 경로를 거부한다.
+  std::replace(path.begin(), path.end(), L'/', L'\\');
   ComPtr<IFileOperation> op;
   HRESULT hr = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&op));
   if (FAILED(hr)) return "CoCreateInstance " + std::to_string(hr);

@@ -189,6 +189,12 @@ void main() {
 
   testWidgets('2. 스캔 벤치마크', timeout: Timeout.none, (tester) async {
     await tester.runAsync(() async {
+      if (Platform.isMacOS &&
+          const bool.fromEnvironment('NO_NAP', defaultValue: false)) {
+        final on = await const MethodChannel('snapkeeper/activity')
+            .invokeMethod<bool>('begin');
+        report('bench activity token=$on');
+      }
       final dir = await Directory.systemTemp.createTemp('snapkeeper_bench');
       final names = <String>[];
       for (final n in ['big.jpg', 'big.heic']) {
