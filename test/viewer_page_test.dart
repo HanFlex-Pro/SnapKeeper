@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:snapkeeper/data/photo_scanner.dart';
 import 'package:snapkeeper/ui/viewer_page.dart';
 
+import 'test_helpers.dart';
+
 void main() {
   final photos = [
     for (final name in ['a.jpg', 'b.jpg', 'c.jpg'])
@@ -106,5 +108,33 @@ void main() {
     expect(find.text('2023-05-01 14:30:15'), findsOneWidget);
     expect(find.text('Canon EOS R6'), findsOneWidget);
     expect(find.text('2024-01-02 03:04:05'), findsOneWidget);
+  });
+
+  testWidgets('이전·다음 사진을 미리 읽는다', (tester) async {
+    final real = [
+      for (final name in ['exif.jpg', 'scene_q90.jpg', 'scene_q40.jpg'])
+        PhotoFile(File('test/fixtures/$name').absolute.path, 1, DateTime(2024)),
+    ];
+    await tester.pumpWidget(
+      MaterialApp(home: ViewerPage(photos: real, initialIndex: 1)),
+    );
+    await tester.pump();
+
+    final size = tester.view.physicalSize;
+    final decodeSize = (size.width > size.height ? size.width : size.height)
+        .round();
+    Future<bool> tracked(int i) async {
+      final key = await ResizeImage(
+        FileImage(File(real[i].path)),
+        width: decodeSize,
+        height: decodeSize,
+        policy: ResizeImagePolicy.fit,
+      ).obtainKey(ImageConfiguration.empty);
+      return !PaintingBinding.instance.imageCache.statusForKey(key).untracked;
+    }
+
+    expect(await tracked(0), isTrue);
+    expect(await tracked(2), isTrue);
+    await finishPendingIo(tester);
   });
 }
