@@ -29,6 +29,28 @@ class MainFlutterWindow: NSWindow {
       }
     }
 
+    // 긴 분석 중 App Nap을 막는다. 막지 않으면 창이 가려졌을 때 분석이 크게 느려진다.
+    var activity: NSObjectProtocol?
+    let activityChannel = FlutterMethodChannel(
+      name: "snapkeeper/activity",
+      binaryMessenger: flutterViewController.engine.binaryMessenger)
+    activityChannel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "begin":
+        if activity == nil {
+          activity = ProcessInfo.processInfo.beginActivity(
+            options: .userInitiated, reason: call.arguments as? String ?? "사진 분석")
+        }
+        result(nil)
+      case "end":
+        if let token = activity { ProcessInfo.processInfo.endActivity(token) }
+        activity = nil
+        result(nil)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
     // 샌드박스는 재실행하면 폴더 접근 권한을 회수한다. 보안 북마크로 되찾는다.
     var accessedURL: URL?
     let folderChannel = FlutterMethodChannel(

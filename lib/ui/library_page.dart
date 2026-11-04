@@ -3,15 +3,17 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import '../data/analyzer.dart';
+import '../data/database.dart';
 import '../data/photo_scanner.dart';
-import '../data/settings.dart';
+import '../platform/background_activity.dart';
 import '../platform/folder_access.dart';
 import 'viewer_page.dart';
 
 class LibraryPage extends StatefulWidget {
-  const LibraryPage({super.key, required this.store});
+  const LibraryPage({super.key, required this.db});
 
-  final SettingsStore store;
+  final PhotoDatabase db;
 
   @override
   State<LibraryPage> createState() => _LibraryPageState();
@@ -23,24 +25,32 @@ class _LibraryPageState extends State<LibraryPage> {
   String? _message;
   bool _loading = true;
 
+  /// 분석 진행 (끝난 수, 전체 수). 분석 중이 아니면 null.
+  (int, int)? _analysis;
+  int _generation = 0;
+
   @override
   void initState() {
     super.initState();
     _restore();
   }
 
+  @override
+  void dispose() {
+    _generation++; // 진행 중인 분석을 멈춘다.
+    super.dispose();
+  }
+
   Future<void> _restore() async {
-    final settings = widget.store.load();
-    final path = settings.folderPath;
+    final saved = widget.db.lastFolder();
+    final path = saved?.path;
     String? folder;
     String? message;
     if (path != null) {
       try {
-        final restored = await FolderAccess.restore(path, settings.bookmark);
+        final restored = await FolderAccess.restore(path, saved!.bookmark);
         if (restored.bookmark != null) {
-          widget.store.save(
-            Settings(folderPath: restored.path, bookmark: restored.bookmark),
-          );
+          widget.db.saveFolder(restored.path, restored.bookmark);
         }
         if (await Directory(restored.path).exists()) {
           folder = restored.path;
@@ -61,10 +71,35 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   Future<void> _load(String folder) async {
-    setState(() => _scan = null);
+    final generation = ++_generation;
+    setState(() {
+      _scan = null;
+      _analysis = null;
+    });
     final scan = await scanPhotos(folder);
-    if (!mounted || _folder != folder) return;
+    if (!mounted || generation != _generation) return;
     setState(() => _scan = scan);
+    final pending = widget.db.sync(folder, scan.photos);
+    if (pending.isNotEmpty) await _analyze(pending, generation);
+  }
+
+  Future<void> _analyze(List<String> pending, int generation) async {
+    bool stale() => !mounted || generation != _generation;
+    setState(() => _analysis = (0, pending.length));
+    await BackgroundActivity.begin('사진 분석');
+    try {
+      await analyzePhotos(
+        widget.db,
+        pending,
+        isCancelled: stale,
+        onProgress: (done, total) {
+          if (!stale()) setState(() => _analysis = (done, total));
+        },
+      );
+    } finally {
+      await BackgroundActivity.end();
+    }
+    if (!stale()) setState(() => _analysis = null);
   }
 
   Future<void> _pick() async {
@@ -73,7 +108,7 @@ class _LibraryPageState extends State<LibraryPage> {
     try {
       await FolderAccess.release();
       final bookmark = await FolderAccess.createBookmark(path);
-      widget.store.save(Settings(folderPath: path, bookmark: bookmark));
+      widget.db.saveFolder(path, bookmark);
       setState(() {
         _folder = path;
         _message = null;
@@ -97,14 +132,20 @@ class _LibraryPageState extends State<LibraryPage> {
       );
     }
     final photos = scan.photos;
+    final analysis = _analysis;
     return Column(
       children: [
+        if (analysis != null)
+          LinearProgressIndicator(
+            value: analysis.$2 == 0 ? null : analysis.$1 / analysis.$2,
+          ),
         Padding(
           padding: const EdgeInsets.all(8),
           child: Text(
             [
               '사진 ${photos.length}장',
               if (scan.skippedFolders > 0) '읽지 못한 폴더 ${scan.skippedFolders}개',
+              if (analysis != null) '분석 중 ${analysis.$1} / ${analysis.$2}',
             ].join(' · '),
           ),
         ),
