@@ -45,3 +45,18 @@ Future<void> finishPendingIo(WidgetTester tester) async {
     await tester.pump();
   }
 }
+
+/// [finder]가 나타날 때까지 실제 입출력을 진행시키며 기다린다.
+Future<void> pumpUntilFound(
+  WidgetTester tester,
+  Finder finder, {
+  Duration timeout = const Duration(seconds: 10),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (finder.evaluate().isEmpty && DateTime.now().isBefore(deadline)) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pump();
+  }
+}

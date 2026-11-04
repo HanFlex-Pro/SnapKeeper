@@ -121,12 +121,13 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   Future<void> _openDuplicates(String folder) async {
-    final changed = await Navigator.of(context).push<bool>(
+    await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => DuplicatesPage(db: widget.db, folder: folder),
       ),
     );
-    if (changed == true && mounted) await _load(folder);
+    // 휴지통으로 옮긴 사진을 목록에서 뺀다. 분석 결과는 DB에 있어 다시 분석하지 않는다.
+    if (mounted) await _load(folder);
   }
 
   Widget _buildLibrary() {
