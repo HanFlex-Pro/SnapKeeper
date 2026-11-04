@@ -37,7 +37,11 @@ flutter run -d macos
 - 브랜치: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/` + 설명. Issue가 있으면 번호 포함. 예: `feat/12-duplicate-scan`
 - 커밋: Conventional Commits. 예: `feat(scan): 파일 해시 기반 중복 탐지 추가`
 - PR: 한 가지 목적만 담고 관련 Issue를 연결합니다.
-- 병합: Squash merge. CI 통과와 사용자 승인이 모두 필요하며, Claude가 임의로 병합하지 않습니다.
+- 병합: Squash merge. 아래 세 가지가 모두 필요하며, Claude가 임의로 병합하지 않습니다.
+  1. Windows CI 통과 (GitHub Actions)
+  2. Claude의 로컬 macOS 확인: `dart format`, `flutter analyze`, `flutter test`, `flutter build macos --release`. 커밋한 상태 그대로(작업 트리가 깨끗한 상태) 돌리고, 결과를 PR 본문 "테스트" 절에 적습니다.
+  3. 사용자 승인
+- CI: GitHub 무료 플랜이라 macOS 러너는 쓰지 않습니다(분당 단가가 Windows의 6배 이상이고 배정도 자주 밀림). macOS CI가 필요하면 사용자에게 먼저 묻습니다.
 - 릴리즈: SemVer 태그(`v0.2.0`)와 `CHANGELOG.md` 갱신.
 
 ## 작업 방식
