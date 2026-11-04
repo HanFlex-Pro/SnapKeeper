@@ -1,24 +1,30 @@
+# 무료 플랜 기준: Windows 테스트만 돌린다. macOS는 Claude가 로컬에서 확인한다 (CLAUDE.md).
 name: CI
 
 on:
+  pull_request:
+    paths-ignore: ['docs/**', '**/*.md']
   push:
     branches: [main]
-  pull_request:
+    paths-ignore: ['docs/**', '**/*.md']
+  workflow_dispatch:
+    inputs:
+      build:
+        description: 'Windows 릴리즈 빌드까지 실행'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-latest
-            target: macos
-          - os: windows-latest
-            target: windows
-    runs-on: ${{ matrix.os }}
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -30,4 +36,5 @@ jobs:
       - run: dart format --output=none --set-exit-if-changed lib test
       - run: flutter analyze
       - run: flutter test
-      - run: flutter build ${{ matrix.target }} --release
+      - if: ${{ inputs.build }}
+        run: flutter build windows --release
