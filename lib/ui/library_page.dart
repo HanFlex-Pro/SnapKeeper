@@ -9,6 +9,7 @@ import '../data/photo_scanner.dart';
 import '../platform/background_activity.dart';
 import '../platform/folder_access.dart';
 import 'duplicates_page.dart';
+import 'quality_page.dart';
 import 'viewer_page.dart';
 
 class LibraryPage extends StatefulWidget {
@@ -139,12 +140,12 @@ class _LibraryPageState extends State<LibraryPage> {
     }
   }
 
-  Future<void> _openDuplicates(String folder) async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (_) => DuplicatesPage(db: widget.db, folder: folder),
-      ),
-    );
+  Future<void> _openDuplicates(String folder) =>
+      _openReview(DuplicatesPage(db: widget.db, folder: folder), folder);
+
+  Future<void> _openReview(Widget page, String folder) async {
+    await Navigator.of(context)
+        .push<void>(MaterialPageRoute(builder: (_) => page));
     // 휴지통으로 옮긴 사진을 목록에서 뺀다. 분석 결과는 DB에 있어 다시 분석하지 않는다.
     if (mounted) await _load(folder);
   }
@@ -219,6 +220,17 @@ class _LibraryPageState extends State<LibraryPage> {
                   : null,
               icon: const Icon(Icons.content_copy),
               label: Text(_analysis == null ? '중복 찾기' : '분석이 끝나면 중복 찾기'),
+            ),
+          if (folder != null && _scan != null)
+            TextButton.icon(
+              onPressed: _analysis == null
+                  ? () => _openReview(
+                      QualityPage(db: widget.db, folder: folder),
+                      folder,
+                    )
+                  : null,
+              icon: const Icon(Icons.auto_fix_high),
+              label: const Text('품질 정리'),
             ),
           if (folder != null)
             TextButton.icon(

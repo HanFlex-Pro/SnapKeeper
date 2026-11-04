@@ -60,17 +60,7 @@ void main() {
       ),
     );
     await pumpUntilLoaded(tester);
-    // 썸네일이 파일을 다 읽을 때까지 기다린다. Windows는 읽는 중인 파일을 지울 수 없다.
-    final thumbnails = find.byType(Checkbox).evaluate().length;
-    final deadline = DateTime.now().add(const Duration(seconds: 10));
-    while (find.byIcon(Icons.broken_image_outlined).evaluate().length <
-            thumbnails &&
-        DateTime.now().isBefore(deadline)) {
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 50)),
-      );
-      await tester.pump();
-    }
+    await pumpUntilThumbnailsSettled(tester);
   }
 
   Finder confirmButton() => find.descendant(

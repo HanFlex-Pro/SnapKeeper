@@ -60,3 +60,18 @@ Future<void> pumpUntilFound(
     await tester.pump();
   }
 }
+
+/// 썸네일이 파일을 다 읽을 때까지 기다린다(테스트 파일은 이미지가 아니라 대체 아이콘이 된다).
+/// Windows는 읽는 중인 파일을 지울 수 없어, 휴지통 흐름 테스트 전에 부른다.
+Future<void> pumpUntilThumbnailsSettled(WidgetTester tester) async {
+  final thumbnails = find.byType(Checkbox).evaluate().length;
+  final deadline = DateTime.now().add(const Duration(seconds: 10));
+  while (find.byIcon(Icons.broken_image_outlined).evaluate().length <
+          thumbnails &&
+      DateTime.now().isBefore(deadline)) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pump();
+  }
+}
