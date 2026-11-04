@@ -8,7 +8,7 @@ import '../core/image_features.dart';
 import 'photo_scanner.dart';
 
 /// 분석 알고리즘이 바뀌면 올린다. 버전이 다른 사진은 다시 분석한다.
-const analysisVersion = 1;
+const analysisVersion = 2; // 2: 선명도, 위치 추가 (v0.3)
 
 /// 사진 한 장의 분석 결과. 디코딩에 실패해도 해시와 EXIF는 채운다.
 class PhotoAnalysis {
@@ -19,6 +19,8 @@ class PhotoAnalysis {
     this.height,
     this.takenAt,
     this.camera,
+    this.latitude,
+    this.longitude,
     this.error,
   });
 
@@ -28,6 +30,8 @@ class PhotoAnalysis {
   final int? height;
   final DateTime? takenAt;
   final String? camera;
+  final double? latitude;
+  final double? longitude;
   final String? error;
 }
 
@@ -79,6 +83,15 @@ class PhotoDatabase {
           selected_at INTEGER NOT NULL
         );
         PRAGMA user_version = 1;
+      ''');
+    }
+    if (version < 2) {
+      // 새 열은 비어 있고, analysisVersion이 올라가 모든 사진을 다시 분석한다.
+      _db.execute('''
+        ALTER TABLE photos ADD COLUMN sharpness REAL;
+        ALTER TABLE photos ADD COLUMN latitude REAL;
+        ALTER TABLE photos ADD COLUMN longitude REAL;
+        PRAGMA user_version = 2;
       ''');
     }
   }
@@ -149,6 +162,7 @@ class PhotoDatabase {
         'UPDATE photos SET size_bytes = ?, modified_at = ?, sha256 = NULL, '
         'phash = NULL, mean_rgb = NULL, gray_std = NULL, saturation = NULL, '
         'width = NULL, height = NULL, taken_at = NULL, camera = NULL, '
+        'sharpness = NULL, latitude = NULL, longitude = NULL, '
         'analysis_version = NULL, error = NULL WHERE path = ?',
       );
       for (final file in listed) {
@@ -180,6 +194,7 @@ class PhotoDatabase {
       final update = _db.prepare(
         'UPDATE photos SET sha256 = ?, phash = ?, mean_rgb = ?, gray_std = ?, '
         'saturation = ?, width = ?, height = ?, taken_at = ?, camera = ?, '
+        'sharpness = ?, latitude = ?, longitude = ?, '
         'analysis_version = ?, error = ? WHERE path = ?',
       );
       for (final MapEntry(key: path, value: a) in results.entries) {
@@ -193,6 +208,9 @@ class PhotoDatabase {
           a.height,
           a.takenAt?.millisecondsSinceEpoch,
           a.camera,
+          a.features?.sharpness,
+          a.latitude,
+          a.longitude,
           analysisVersion,
           a.error,
           path,
@@ -217,14 +235,19 @@ class PhotoDatabase {
         sha256: row['sha256'] as String?,
         phash: row['phash'] as int?,
         meanRgb: row['mean_rgb'] as int?,
-        grayStd: row['gray_std'] as double?,
-        saturation: row['saturation'] as double?,
+        grayStd: _real(row['gray_std']),
+        saturation: _real(row['saturation']),
         width: row['width'] as int?,
         height: row['height'] as int?,
         takenAt: switch (row['taken_at']) {
           final int ms => DateTime.fromMillisecondsSinceEpoch(ms),
           _ => null,
         },
+        camera: row['camera'] as String?,
+        sharpness: _real(row['sharpness']),
+        latitude: _real(row['latitude']),
+        longitude: _real(row['longitude']),
+        error: row['error'] as String?,
       ),
   ];
 
@@ -252,6 +275,9 @@ class PhotoDatabase {
   };
 
   // --- 내부
+
+  /// SQLite는 소수점 없는 실수를 정수로 돌려줄 수 있다.
+  static double? _real(Object? v) => (v as num?)?.toDouble();
 
   /// 폴더 이름이 같은 다른 폴더(`/사진` 과 `/사진2`)가 섞이지 않도록 구분자까지 붙인다.
   static String _prefix(String root) => root.endsWith(Platform.pathSeparator)

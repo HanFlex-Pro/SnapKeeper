@@ -3,7 +3,13 @@ import 'dart:typed_data';
 
 /// 축소 디코딩한 RGBA 픽셀에서 계산한 비교용 값.
 class ImageFeatures {
-  const ImageFeatures(this.phash, this.meanRgb, this.grayStd, this.saturation);
+  const ImageFeatures(
+    this.phash,
+    this.meanRgb,
+    this.grayStd,
+    this.saturation,
+    this.sharpness,
+  );
 
   /// 64비트 지각 해시.
   final int phash;
@@ -16,6 +22,9 @@ class ImageFeatures {
 
   /// 픽셀별 (최대 채널 - 최소 채널)의 평균. 흑백 이미지는 0.
   final double saturation;
+
+  /// 8×8 타일별 라플라시안 분산의 최댓값. 가장 선명한 부분의 선명도.
+  final double sharpness;
 }
 
 ImageFeatures computeFeatures(Uint8List rgba, int width, int height) {
@@ -44,7 +53,44 @@ ImageFeatures computeFeatures(Uint8List rgba, int width, int height) {
     (mr << 16) | (mg << 8) | mb,
     sqrt(max(0, sq / n - mean * mean)),
     chroma / n,
+    sharpness(gray, width, height),
   );
+}
+
+const _tiles = 8;
+
+/// 타일별 라플라시안 분산의 최댓값. 배경이 흐려도 피사체 타일이 선명하면 값이 높다.
+/// 분석용 축소 이미지(긴 변 `analysisMaxEdge`)에서 계산한 값끼리만 비교한다.
+double sharpness(Float64List gray, int w, int h) {
+  if (w < 3 || h < 3) return 0;
+  var best = 0.0;
+  for (var ty = 0; ty < _tiles; ty++) {
+    final y0 = max(1, ty * h ~/ _tiles),
+        y1 = min(h - 1, (ty + 1) * h ~/ _tiles);
+    for (var tx = 0; tx < _tiles; tx++) {
+      final x0 = max(1, tx * w ~/ _tiles),
+          x1 = min(w - 1, (tx + 1) * w ~/ _tiles);
+      var sum = 0.0, sq = 0.0, count = 0;
+      for (var y = y0; y < y1; y++) {
+        for (var x = x0; x < x1; x++) {
+          final i = y * w + x;
+          final l =
+              gray[i - 1] +
+              gray[i + 1] +
+              gray[i - w] +
+              gray[i + w] -
+              4 * gray[i];
+          sum += l;
+          sq += l * l;
+          count++;
+        }
+      }
+      if (count == 0) continue;
+      final mean = sum / count;
+      best = max(best, sq / count - mean * mean);
+    }
+  }
+  return best;
 }
 
 const _size = 32;

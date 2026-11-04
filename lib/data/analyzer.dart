@@ -64,22 +64,22 @@ Future<PhotoAnalysis?> analyzePhoto(String path) async {
     error = '디코딩 실패: $e';
   }
   final rgba = decoded?.rgba, w = decoded?.width ?? 0, h = decoded?.height ?? 0;
-  final (sha, features, takenAt, camera) = await Isolate.run(() async {
-    final (takenAt, camera) = await readExifFields(bytes);
-    return (
+  final (sha, features, exif) = await Isolate.run(
+    () async => (
       sha256.convert(bytes).toString(),
       rgba == null ? null : computeFeatures(rgba, w, h),
-      takenAt,
-      camera,
-    );
-  });
+      await readExifFields(bytes),
+    ),
+  );
   return PhotoAnalysis(
     sha256: sha,
     features: features,
     width: decoded?.sourceWidth,
     height: decoded?.sourceHeight,
-    takenAt: takenAt,
-    camera: camera,
+    takenAt: exif.takenAt,
+    camera: exif.camera,
+    latitude: exif.latitude,
+    longitude: exif.longitude,
     error: error,
   );
 }

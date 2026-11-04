@@ -145,4 +145,68 @@ void main() {
       lessThanOrEqualTo(nearDuplicateMaxSaturationDiff),
     );
   });
+
+  group('선명도', () {
+    /// 3×3 상자 흐림을 [times]번 적용한다. [region]이 있으면 그 밖만 흐리게 한다.
+    Uint8List blur(
+      Uint8List px,
+      int times, {
+      bool Function(int x, int y)? keep,
+    }) {
+      var cur = Uint8List.fromList(px);
+      for (var t = 0; t < times; t++) {
+        final next = Uint8List.fromList(cur);
+        for (var y = 1; y < h - 1; y++) {
+          for (var x = 1; x < w - 1; x++) {
+            if (keep != null && keep(x, y)) continue;
+            for (var c = 0; c < 3; c++) {
+              var sum = 0;
+              for (var dy = -1; dy <= 1; dy++) {
+                for (var dx = -1; dx <= 1; dx++) {
+                  sum += cur[((y + dy) * w + x + dx) * 4 + c];
+                }
+              }
+              next[(y * w + x) * 4 + c] = sum ~/ 9;
+            }
+          }
+        }
+        cur = next;
+      }
+      return cur;
+    }
+
+    test('흐리게 할수록 선명도가 떨어진다', () {
+      final s0 = f.sharpness;
+      final s1 = computeFeatures(blur(base, 2), w, h).sharpness;
+      final s2 = computeFeatures(blur(base, 6), w, h).sharpness;
+
+      expect(s1, lessThan(s0 * 0.5));
+      expect(s2, lessThan(s1));
+    });
+
+    test('배경만 흐려도 선명한 부분이 있으면 선명도가 유지된다', () {
+      // 가운데 1/8 영역만 원본 그대로 두고 나머지를 흐리게 한다.
+      final subject = blur(
+        base,
+        6,
+        keep: (x, y) =>
+            x >= w * 7 ~/ 16 &&
+            x < w * 9 ~/ 16 &&
+            y >= h * 7 ~/ 16 &&
+            y < h * 9 ~/ 16,
+      );
+      final allBlurred = computeFeatures(blur(base, 6), w, h).sharpness;
+
+      expect(
+        computeFeatures(subject, w, h).sharpness,
+        greaterThan(allBlurred * 3),
+      );
+    });
+
+    test('평탄한 이미지는 선명도 0', () {
+      final flat = map(base, (_, _, _) => 128);
+
+      expect(computeFeatures(flat, w, h).sharpness, closeTo(0, 0.001));
+    });
+  });
 }

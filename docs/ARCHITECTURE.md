@@ -69,6 +69,9 @@ photos
   width, height    INTEGER            -- EXIF 회전 적용
   taken_at         INTEGER            -- 밀리초
   camera           TEXT
+  sharpness        REAL               -- v2: 타일별 라플라시안 분산의 최댓값
+  latitude         REAL               -- v2: EXIF 위치 (남위는 음수)
+  longitude        REAL               -- v2: EXIF 위치 (서경은 음수)
   analysis_version INTEGER            -- 분석 완료 표시. 디코딩에 실패해도 기록
   error            TEXT
 
@@ -84,7 +87,7 @@ folders
   selected_at      INTEGER NOT NULL
 ```
 
-- 스키마 버전은 `PRAGMA user_version`으로 관리합니다. 선명도(v0.3)나 위치(v0.4)처럼 나중에 필요한 열은 그 버전에서 추가합니다.
+- 스키마 버전은 `PRAGMA user_version`으로 관리합니다. v2(v0.3)에서 선명도와 위치를 추가했고, `analysisVersion` 2로 기존 사진을 한 번 다시 분석합니다. 위치는 v0.4에서 쓰지만, 전체 재분석을 한 번으로 줄이려고 함께 추가했습니다.
 - "보관" 표시는 경로가 아니라 SHA-256에 저장합니다. 파일을 옮기거나 이름을 바꿔도 유지됩니다.
 - macOS 샌드박스는 재실행하면 폴더 접근 권한을 회수합니다. 폴더를 고를 때 보안 북마크를 저장하고, 실행할 때 복원해 접근합니다.
 - v0.1의 `settings.json`은 v0.2 첫 실행 때 `folders`로 옮기고 지웁니다.
