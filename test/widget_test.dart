@@ -30,12 +30,14 @@ void main() {
 
   testWidgets('저장된 폴더가 있으면 다시 연다', (tester) async {
     final photos = Directory('${temp.path}/photos')..createSync();
+    File('${photos.path}/a.jpg').writeAsStringSync('x');
     store.save(Settings(folderPath: photos.path));
 
     await pumpApp(tester);
 
     expect(find.text('사진 폴더 선택'), findsNothing);
     expect(find.text('폴더 변경'), findsOneWidget);
+    expect(find.text('사진 1장'), findsOneWidget);
   });
 
   testWidgets('저장된 폴더가 사라졌으면 다시 고르도록 안내한다', (tester) async {

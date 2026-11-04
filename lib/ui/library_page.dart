@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import '../data/photo_scanner.dart';
 import '../data/settings.dart';
 import '../platform/folder_access.dart';
 
@@ -17,6 +18,7 @@ class LibraryPage extends StatefulWidget {
 
 class _LibraryPageState extends State<LibraryPage> {
   String? _folder;
+  ScanResult? _scan;
   String? _message;
   bool _loading = true;
 
@@ -54,6 +56,14 @@ class _LibraryPageState extends State<LibraryPage> {
       _message = message;
       _loading = false;
     });
+    if (folder != null) await _load(folder);
+  }
+
+  Future<void> _load(String folder) async {
+    setState(() => _scan = null);
+    final scan = await scanPhotos(folder);
+    if (!mounted || _folder != folder) return;
+    setState(() => _scan = scan);
   }
 
   Future<void> _pick() async {
@@ -67,9 +77,31 @@ class _LibraryPageState extends State<LibraryPage> {
         _folder = path;
         _message = null;
       });
+      await _load(path);
     } catch (_) {
       setState(() => _message = '폴더를 저장하지 못했습니다. 다시 선택해 주세요.');
     }
+  }
+
+  Widget _buildLibrary() {
+    final scan = _scan;
+    if (scan == null) {
+      return const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text('사진을 찾는 중'),
+        ],
+      );
+    }
+    return Text(
+      [
+        '사진 ${scan.photos.length}장',
+        if (scan.skippedFolders > 0) '읽지 못한 폴더 ${scan.skippedFolders}개',
+      ].join('\n'),
+      textAlign: TextAlign.center,
+    );
   }
 
   @override
@@ -91,7 +123,7 @@ class _LibraryPageState extends State<LibraryPage> {
         child: _loading
             ? const CircularProgressIndicator()
             : folder != null
-            ? Text(folder)
+            ? _buildLibrary()
             : Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
