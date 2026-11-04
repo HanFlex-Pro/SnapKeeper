@@ -8,6 +8,7 @@ import '../data/photo_info.dart';
 import '../data/photo_scanner.dart';
 
 /// 사진 한 장을 크게 보여 준다. 좌우 화살표로 이동하고 Esc로 닫는다.
+/// 트랙패드·마우스 휠·`+`/`-`로 확대하고 `0`으로 화면에 맞춘다.
 class ViewerPage extends StatefulWidget {
   const ViewerPage({
     super.key,
@@ -24,14 +25,60 @@ class ViewerPage extends StatefulWidget {
 
 class _ViewerPageState extends State<ViewerPage> {
   late int _index = widget.initialIndex;
+  final _zoom = TransformationController();
+  Size _viewport = Size.zero;
+
+  /// 확대하면 원본 해상도로 다시 읽는다. 화면 크기 디코딩은 확대하면 흐리게 보여 초점을 확인할 수 없다.
+  bool _fullResolution = false;
+
+  static const _maxScale = 8.0;
 
   bool get _hasPrevious => _index > 0;
   bool get _hasNext => _index < widget.photos.length - 1;
 
+  @override
+  void initState() {
+    super.initState();
+    _zoom.addListener(_onZoom);
+  }
+
+  @override
+  void dispose() {
+    _zoom.dispose();
+    super.dispose();
+  }
+
+  void _onZoom() {
+    if (!_fullResolution && _zoom.value.getMaxScaleOnAxis() > 1.05) {
+      setState(() => _fullResolution = true);
+    }
+  }
+
   void _move(int delta) {
     final next = _index + delta;
     if (next < 0 || next >= widget.photos.length) return;
-    setState(() => _index = next);
+    setState(() {
+      _index = next;
+      _fullResolution = false;
+      _zoom.value = Matrix4.identity();
+    });
+  }
+
+  /// 화면 가운데를 기준으로 [factor]배 확대·축소한다. 배율은 1~8배로 제한한다.
+  void _zoomBy(double factor) {
+    final current = _zoom.value.getMaxScaleOnAxis();
+    final target = (current * factor).clamp(1.0, _maxScale);
+    if (target == 1.0) {
+      _zoom.value = Matrix4.identity();
+      return;
+    }
+    final center = Offset(_viewport.width / 2, _viewport.height / 2);
+    final f = target / current;
+    _zoom.value = Matrix4.identity()
+      ..translateByDouble(center.dx, center.dy, 0, 1)
+      ..scaleByDouble(f, f, 1, 1)
+      ..translateByDouble(-center.dx, -center.dy, 0, 1)
+      ..multiply(_zoom.value);
   }
 
   ImageProvider _provider(PhotoFile photo, int decodeSize) => ResizeImage(
@@ -68,6 +115,10 @@ class _ViewerPageState extends State<ViewerPage> {
         const SingleActivator(LogicalKeyboardKey.arrowRight): () => _move(1),
         const SingleActivator(LogicalKeyboardKey.escape): () =>
             Navigator.of(context).maybePop(),
+        const CharacterActivator('+'): () => _zoomBy(2),
+        const CharacterActivator('='): () => _zoomBy(2),
+        const CharacterActivator('-'): () => _zoomBy(0.5),
+        const CharacterActivator('0'): () => _zoom.value = Matrix4.identity(),
       },
       child: Focus(
         autofocus: true,
@@ -87,16 +138,33 @@ class _ViewerPageState extends State<ViewerPage> {
                 tooltip: '이전 사진',
               ),
               Expanded(
-                child: Image(
-                  key: ValueKey(photo.path),
-                  image: _provider(photo, decodeSize),
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stack) => const Center(
-                    child: Text(
-                      '이 사진을 표시할 수 없습니다.',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    _viewport = constraints.biggest;
+                    return InteractiveViewer(
+                      transformationController: _zoom,
+                      maxScale: _maxScale,
+                      child: Image(
+                        key: ValueKey(photo.path),
+                        // ponytail: 원본 전체를 디코딩한다. 1억 화소급 파노라마는 메모리를 수백 MB 쓰므로,
+                        // 문제가 되면 보이는 영역만 타일로 읽는 방식으로 바꾼다.
+                        image: _fullResolution
+                            ? FileImage(File(photo.path))
+                            : _provider(photo, decodeSize),
+                        fit: BoxFit.contain,
+                        width: constraints.maxWidth,
+                        height: constraints.maxHeight,
+                        // 원본으로 바꾸는 동안 화면 크기 이미지를 그대로 둔다.
+                        gaplessPlayback: true,
+                        errorBuilder: (context, error, stack) => const Center(
+                          child: Text(
+                            '이 사진을 표시할 수 없습니다.',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
               IconButton(
