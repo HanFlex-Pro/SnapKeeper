@@ -8,6 +8,7 @@ import '../data/database.dart';
 import '../data/photo_scanner.dart';
 import '../platform/background_activity.dart';
 import '../platform/folder_access.dart';
+import 'duplicates_page.dart';
 import 'viewer_page.dart';
 
 class LibraryPage extends StatefulWidget {
@@ -119,6 +120,15 @@ class _LibraryPageState extends State<LibraryPage> {
     }
   }
 
+  Future<void> _openDuplicates(String folder) async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => DuplicatesPage(db: widget.db, folder: folder),
+      ),
+    );
+    if (changed == true && mounted) await _load(folder);
+  }
+
   Widget _buildLibrary() {
     final scan = _scan;
     if (scan == null) {
@@ -182,6 +192,14 @@ class _LibraryPageState extends State<LibraryPage> {
       appBar: AppBar(
         title: Text(folder ?? 'SnapKeeper'),
         actions: [
+          if (folder != null && _scan != null)
+            TextButton.icon(
+              onPressed: _analysis == null
+                  ? () => _openDuplicates(folder)
+                  : null,
+              icon: const Icon(Icons.content_copy),
+              label: Text(_analysis == null ? '중복 찾기' : '분석이 끝나면 중복 찾기'),
+            ),
           if (folder != null)
             TextButton.icon(
               onPressed: _pick,
