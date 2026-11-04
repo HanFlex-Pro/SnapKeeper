@@ -7,10 +7,11 @@
 - [ ] 사용자가 실제 사진 폴더 복사본으로 앱을 확인
 - [ ] `pubspec.yaml`의 `version` 올리기
 - [ ] `CHANGELOG.md`에 추가, 알려진 제한 정리
-- [ ] PR 생성 → CI 통과 → 사용자 승인 후 Squash merge
+- [ ] PR 생성 → Windows CI 통과 + 로컬 macOS 확인 → 사용자 승인 후 Squash merge
 
 ## 2. 빌드와 배포 (`main`에서)
-- [ ] `flutter test`, `flutter build macos --release`
+- [ ] `main`의 Windows CI 통과 확인
+- [ ] 로컬에서 `flutter test`, `flutter build macos --release`
 - [ ] 압축: `ditto -c -k --keepParent build/macos/Build/Products/Release/snapkeeper.app SnapKeeper-X.Y.Z-macos.zip`
 - [ ] 태그: `git tag -a vX.Y.Z -m "vX.Y.Z"` → `git push origin vX.Y.Z`
 - [ ] GitHub 릴리즈: `gh release create vX.Y.Z SnapKeeper-X.Y.Z-macos.zip --notes-file <CHANGELOG의 해당 절>`
