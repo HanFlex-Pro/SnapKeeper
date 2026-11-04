@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:snapkeeper/data/settings.dart';
 import 'package:snapkeeper/main.dart';
 import 'package:snapkeeper/ui/library_page.dart';
+import 'package:snapkeeper/ui/viewer_page.dart';
 
 import 'test_helpers.dart';
 
@@ -83,5 +84,18 @@ void main() {
     await pumpApp(tester);
 
     expect(find.textContaining('지원하는 사진이 없습니다'), findsOneWidget);
+  });
+
+  testWidgets('썸네일을 누르면 그 사진의 상세 화면을 연다', (tester) async {
+    final photos = Directory('${temp.path}/photos')..createSync();
+    File('${photos.path}/a.jpg').writeAsStringSync('x');
+    store.save(Settings(folderPath: photos.path));
+    await pumpApp(tester);
+
+    await tester.tap(find.byType(Thumbnail));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ViewerPage), findsOneWidget);
+    expect(find.textContaining('a.jpg  ·  1 / 1'), findsOneWidget);
   });
 }

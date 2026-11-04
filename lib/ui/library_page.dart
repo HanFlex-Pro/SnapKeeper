@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../data/photo_scanner.dart';
 import '../data/settings.dart';
 import '../platform/folder_access.dart';
+import 'viewer_page.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key, required this.store});
@@ -118,7 +119,15 @@ class _LibraryPageState extends State<LibraryPage> {
                     crossAxisSpacing: 4,
                   ),
                   itemCount: photos.length,
-                  itemBuilder: (context, i) => Thumbnail(photos[i]),
+                  itemBuilder: (context, i) => Thumbnail(
+                    photos[i],
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            ViewerPage(photos: photos, initialIndex: i),
+                      ),
+                    ),
+                  ),
                 ),
         ),
       ],
@@ -166,9 +175,10 @@ class _LibraryPageState extends State<LibraryPage> {
 
 /// 격자 한 칸. 화면에 보이는 칸만 만들어지므로 보이는 사진만 디코딩한다.
 class Thumbnail extends StatelessWidget {
-  const Thumbnail(this.photo, {super.key});
+  const Thumbnail(this.photo, {super.key, this.onTap});
 
   final PhotoFile photo;
+  final VoidCallback? onTap;
 
   // ponytail: 매번 원본을 축소 디코딩한다. 스크롤이 느리면 디스크 썸네일 캐시를 추가.
   static const _decodeSize = 320;
@@ -178,21 +188,24 @@ class Thumbnail extends StatelessWidget {
     return Tooltip(
       message: photo.name,
       waitDuration: const Duration(milliseconds: 600),
-      child: ColoredBox(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: Image(
-          image: ResizeImage(
-            FileImage(File(photo.path)),
-            width: _decodeSize,
-            height: _decodeSize,
-            policy: ResizeImagePolicy.fit,
-          ),
-          fit: BoxFit.cover,
-          gaplessPlayback: true,
-          errorBuilder: (context, error, stack) => const Center(
-            child: Icon(
-              Icons.broken_image_outlined,
-              semanticLabel: '표시할 수 없는 사진',
+      child: InkWell(
+        onTap: onTap,
+        child: Ink(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          child: Image(
+            image: ResizeImage(
+              FileImage(File(photo.path)),
+              width: _decodeSize,
+              height: _decodeSize,
+              policy: ResizeImagePolicy.fit,
+            ),
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+            errorBuilder: (context, error, stack) => const Center(
+              child: Icon(
+                Icons.broken_image_outlined,
+                semanticLabel: '표시할 수 없는 사진',
+              ),
             ),
           ),
         ),
