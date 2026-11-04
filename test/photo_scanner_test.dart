@@ -111,4 +111,36 @@ void main() {
     expect(fileName(r'C:\사진\a.jpg', windows: true), 'a.jpg');
     expect(fileName('a.jpg'), 'a.jpg');
   });
+
+  test('촬영일 순으로 다시 정렬하고, 촬영일이 없으면 수정일을 쓴다', () {
+    PhotoFile f(String name, int year) =>
+        PhotoFile('/p/$name', 1, DateTime(year));
+    final photos = [
+      f('copied_old.jpg', 2024),
+      f('no_exif.jpg', 2022),
+      f('copied_new.jpg', 2024),
+    ];
+
+    final sorted = sortByCaptureDate(photos, {
+      '/p/copied_old.jpg': DateTime(2010),
+      '/p/copied_new.jpg': DateTime(2023),
+    });
+
+    expect(sorted.map((p) => p.name), [
+      'copied_new.jpg',
+      'no_exif.jpg',
+      'copied_old.jpg',
+    ]);
+    expect(photos.first.name, 'copied_old.jpg'); // 원본 목록은 그대로
+  });
+
+  test('날짜가 같으면 파일명 순', () {
+    final d = DateTime(2024);
+    final sorted = sortByCaptureDate([
+      PhotoFile('/p/b.jpg', 1, d),
+      PhotoFile('/p/a.jpg', 1, d),
+    ], {});
+
+    expect(sorted.map((p) => p.name), ['a.jpg', 'b.jpg']);
+  });
 }

@@ -72,6 +72,19 @@ ScanResult scanPhotosSync(String root) {
   return ScanResult(photos, skipped);
 }
 
+/// 촬영일(없으면 수정일) 최신 순, 같으면 파일명 순.
+/// 복사한 사진은 수정일이 복사한 날짜라, 분석으로 촬영일을 알게 되면 이 순서로 다시 정렬한다.
+List<PhotoFile> sortByCaptureDate(
+  List<PhotoFile> photos,
+  Map<String, DateTime> takenAt,
+) {
+  DateTime date(PhotoFile p) => takenAt[p.path] ?? p.modified;
+  return [...photos]..sort((a, b) {
+    final byDate = date(b).compareTo(date(a));
+    return byDate != 0 ? byDate : a.name.compareTo(b.name);
+  });
+}
+
 bool _isSupported(String name) {
   final dot = name.lastIndexOf('.');
   return dot > 0 &&

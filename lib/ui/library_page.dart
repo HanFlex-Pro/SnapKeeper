@@ -81,7 +81,26 @@ class _LibraryPageState extends State<LibraryPage> {
     if (!mounted || generation != _generation) return;
     setState(() => _scan = scan);
     final pending = widget.db.sync(folder, scan.photos);
-    if (pending.isNotEmpty) await _analyze(pending, generation);
+    _sortByCaptureDate(folder);
+    if (pending.isNotEmpty) {
+      await _analyze(pending, generation);
+      if (mounted && generation == _generation) _sortByCaptureDate(folder);
+    }
+  }
+
+  /// DB에 저장된 촬영일로 다시 정렬한다. 아직 분석하지 않은 사진은 수정일을 쓴다.
+  void _sortByCaptureDate(String folder) {
+    final scan = _scan!;
+    final takenAt = {
+      for (final r in widget.db.records(folder))
+        if (r.takenAt != null) r.path: r.takenAt!,
+    };
+    setState(
+      () => _scan = ScanResult(
+        sortByCaptureDate(scan.photos, takenAt),
+        scan.skippedFolders,
+      ),
+    );
   }
 
   Future<void> _analyze(List<String> pending, int generation) async {

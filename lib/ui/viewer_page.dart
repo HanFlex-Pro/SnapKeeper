@@ -34,12 +34,34 @@ class _ViewerPageState extends State<ViewerPage> {
     setState(() => _index = next);
   }
 
+  ImageProvider _provider(PhotoFile photo, int decodeSize) => ResizeImage(
+    FileImage(File(photo.path)),
+    width: decodeSize,
+    height: decodeSize,
+    policy: ResizeImagePolicy.fit,
+  );
+
+  /// 이전·다음 사진을 미리 디코딩해 넘길 때 빈 화면이 보이지 않게 한다.
+  void _prefetchNeighbors(int decodeSize) {
+    for (final i in [_index - 1, _index + 1]) {
+      if (i < 0 || i >= widget.photos.length) continue;
+      precacheImage(
+        _provider(widget.photos[i], decodeSize),
+        context,
+        onError: (_, _) {}, // 표시할 때 다시 시도하고 그때 안내한다.
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final photo = widget.photos[_index];
     final screen =
         MediaQuery.sizeOf(context) * MediaQuery.devicePixelRatioOf(context);
     final decodeSize = max(screen.width, screen.height).round();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _prefetchNeighbors(decodeSize);
+    });
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _move(-1),
@@ -67,12 +89,7 @@ class _ViewerPageState extends State<ViewerPage> {
               Expanded(
                 child: Image(
                   key: ValueKey(photo.path),
-                  image: ResizeImage(
-                    FileImage(File(photo.path)),
-                    width: decodeSize,
-                    height: decodeSize,
-                    policy: ResizeImagePolicy.fit,
-                  ),
+                  image: _provider(photo, decodeSize),
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stack) => const Center(
                     child: Text(
