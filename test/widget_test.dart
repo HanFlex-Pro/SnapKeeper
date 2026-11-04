@@ -97,5 +97,7 @@ void main() {
 
     expect(find.byType(ViewerPage), findsOneWidget);
     expect(find.textContaining('a.jpg  ·  1 / 1'), findsOneWidget);
+
+    await finishPendingIo(tester);
   });
 }

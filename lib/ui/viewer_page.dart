@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../data/photo_info.dart';
 import '../data/photo_scanner.dart';
 
 /// 사진 한 장을 크게 보여 준다. 좌우 화살표로 이동하고 Esc로 닫는다.
@@ -87,10 +88,80 @@ class _ViewerPageState extends State<ViewerPage> {
                 color: Colors.white,
                 tooltip: '다음 사진',
               ),
+              InfoPanel(key: ValueKey('info ${photo.path}'), photo: photo),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+/// 사진 정보. 읽을 수 없는 항목은 표시하지 않는다.
+class InfoPanel extends StatefulWidget {
+  const InfoPanel({super.key, required this.photo});
+
+  final PhotoFile photo;
+
+  @override
+  State<InfoPanel> createState() => _InfoPanelState();
+}
+
+class _InfoPanelState extends State<InfoPanel> {
+  late final Future<PhotoInfo> _info = readPhotoInfo(widget.photo.path);
+
+  @override
+  Widget build(BuildContext context) {
+    final photo = widget.photo;
+    return Container(
+      width: 280,
+      color: Theme.of(context).colorScheme.surface,
+      padding: const EdgeInsets.all(16),
+      child: FutureBuilder<PhotoInfo>(
+        future: _info,
+        builder: (context, snapshot) {
+          final info = snapshot.data;
+          final rows = <(String, String)>[
+            ('파일명', photo.name),
+            ('경로', photo.path),
+            ('크기', formatBytes(photo.size)),
+            if (info?.width != null) ('해상도', '${info!.width} × ${info.height}'),
+            if (info?.takenAt != null) ('촬영일', formatDate(info!.takenAt!)),
+            if (info?.camera != null) ('카메라', info!.camera!),
+            ('수정일', formatDate(photo.modified)),
+          ];
+          return ListView(
+            children: [
+              for (final (label, value) in rows)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
+                      SelectableText(value),
+                    ],
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+String formatBytes(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+}
+
+String formatDate(DateTime d) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${d.year}-${two(d.month)}-${two(d.day)} '
+      '${two(d.hour)}:${two(d.minute)}:${two(d.second)}';
 }

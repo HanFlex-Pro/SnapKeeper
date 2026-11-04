@@ -36,6 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   file_selector: ^1.1.0
   path_provider: ^2.1.6
+  exif: ^3.3.0
 
 dev_dependencies:
   flutter_test:

@@ -31,3 +31,16 @@ Future<void> deleteWithRetry(Directory dir) async {
     }
   }
 }
+
+/// 화면을 내리고 진행 중인 파일 읽기가 끝나게 한다.
+/// 테스트 시간 안에서는 실제 입출력의 후속 처리가 pump해야만 실행되므로,
+/// 그대로 끝내면 Windows에서 파일이 열린 채 남아 임시 폴더를 지울 수 없다.
+Future<void> finishPendingIo(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox());
+  for (var i = 0; i < 10; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pump();
+  }
+}

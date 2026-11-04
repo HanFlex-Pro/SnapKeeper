@@ -10,8 +10,15 @@ class PhotoFile {
   final int size;
   final DateTime modified;
 
-  String get name =>
-      path.substring(path.lastIndexOf(Platform.pathSeparator) + 1);
+  String get name => fileName(path);
+}
+
+/// 경로의 마지막 부분. Windows는 `\`와 `/`를 모두 구분자로 쓸 수 있다.
+String fileName(String path, {bool windows = false}) {
+  final i = windows || Platform.isWindows
+      ? path.lastIndexOf(RegExp(r'[\\/]'))
+      : path.lastIndexOf('/');
+  return path.substring(i + 1);
 }
 
 class ScanResult {
@@ -44,9 +51,7 @@ ScanResult scanPhotosSync(String root) {
       continue;
     }
     for (final entry in entries) {
-      final name = entry.path.substring(
-        entry.path.lastIndexOf(Platform.pathSeparator) + 1,
-      );
+      final name = fileName(entry.path);
       if (name.startsWith('.')) continue;
       if (entry is Directory) {
         pending.add(entry);

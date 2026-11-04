@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -69,5 +71,40 @@ void main() {
 
     expect(find.byType(ViewerPage), findsNothing);
     expect(find.text('열기'), findsOneWidget);
+  });
+
+  test('크기와 날짜 표시 형식', () {
+    expect(formatBytes(512), '512 B');
+    expect(formatBytes(1536), '1.5 KB');
+    expect(formatBytes(5 * 1024 * 1024), '5.0 MB');
+    expect(formatDate(DateTime(2023, 5, 1, 9, 3, 7)), '2023-05-01 09:03:07');
+  });
+
+  testWidgets('정보 패널에 파일 정보를 표시한다', (tester) async {
+    final photo = PhotoFile(
+      File('test/fixtures/exif.jpg').absolute.path,
+      881,
+      DateTime(2024, 1, 2, 3, 4, 5),
+    );
+    await tester.pumpWidget(
+      MaterialApp(home: ViewerPage(photos: [photo], initialIndex: 0)),
+    );
+    for (
+      var i = 0;
+      i < 10 && find.text('Canon EOS R6').evaluate().isEmpty;
+      i++
+    ) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
+      await tester.pump();
+    }
+
+    expect(find.text('exif.jpg'), findsOneWidget);
+    expect(find.text('881 B'), findsOneWidget);
+    expect(find.text('64 × 32'), findsOneWidget);
+    expect(find.text('2023-05-01 14:30:15'), findsOneWidget);
+    expect(find.text('Canon EOS R6'), findsOneWidget);
+    expect(find.text('2024-01-02 03:04:05'), findsOneWidget);
   });
 }
