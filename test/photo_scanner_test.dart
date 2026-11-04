@@ -104,4 +104,11 @@ void main() {
 
     expect(names(await scanPhotos(root.path)), ['a.jpg']);
   });
+
+  test('파일명은 OS 구분자로 자른다', () {
+    expect(fileName('/사진/2024/a.jpg'), 'a.jpg');
+    expect(fileName(r'C:\사진\sub/a.jpg', windows: true), 'a.jpg');
+    expect(fileName(r'C:\사진\a.jpg', windows: true), 'a.jpg');
+    expect(fileName('a.jpg'), 'a.jpg');
+  });
 }
