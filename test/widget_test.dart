@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:snapkeeper/data/settings.dart';
 import 'package:snapkeeper/main.dart';
 
+import 'test_helpers.dart';
+
 void main() {
   late Directory temp;
   late SettingsStore store;
@@ -13,12 +15,11 @@ void main() {
     store = SettingsStore(File('${temp.path}/settings.json'));
   });
 
-  tearDown(() => temp.deleteSync(recursive: true));
+  tearDown(() => deleteWithRetry(temp));
 
   Future<void> pumpApp(WidgetTester tester) async {
     await tester.pumpWidget(SnapKeeperApp(store: store));
-    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
-    await tester.pump();
+    await pumpUntilLoaded(tester);
   }
 
   testWidgets('저장된 폴더가 없으면 폴더 선택 버튼을 보여 준다', (tester) async {
