@@ -46,25 +46,12 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
-  image: ^4.12.0
-  crypto: ^3.0.8
-  integration_test:
-    sdk: flutter
-
-# For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
-
-# The following section is specific to Flutter packages.
 flutter:
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
-
-  # M0 기술 검증용. 검증 후 삭제한다.
-  assets:
-    - integration_test/fixtures/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
