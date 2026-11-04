@@ -12,7 +12,7 @@ Flutter 앱 하나로 구성하며 서버는 없습니다.
 lib/
   main.dart
   core/       순수 Dart. 해시, 선명도, 그룹화, 기준값. Flutter와 파일 시스템에 의존하지 않음
-  data/       SQLite(drift), 폴더 스캔, 분석 파이프라인
+  data/       SQLite, 폴더 스캔, 분석 파이프라인
   platform/   OS별 코드. 휴지통 이동, 이미지 디코딩
   ui/         화면
 test/         core와 data 단위 테스트
@@ -53,25 +53,26 @@ macOS에서는 스캔하는 동안 `ProcessInfo.beginActivity`로 App Nap을 막
 
 ## 3. 데이터베이스
 
+앱 데이터 폴더의 `snapkeeper.db`입니다. `sqlite3` 패키지로 SQL을 직접 씁니다. 테이블이 적어 `drift` 같은 코드 생성 도구는 쓰지 않습니다. SQLite 라이브러리는 빌드할 때 앱에 함께 들어갑니다(`sqlite3.framework`).
+
 ```text
 photos
   id               INTEGER PRIMARY KEY
   path             TEXT UNIQUE NOT NULL
   size_bytes       INTEGER NOT NULL
-  modified_at      INTEGER NOT NULL
+  modified_at      INTEGER NOT NULL   -- 밀리초
   sha256           TEXT
-  phash            INTEGER        -- 64비트
-  width, height    INTEGER
-  taken_at         INTEGER
-  camera_make      TEXT
-  camera_model     TEXT
-  latitude         REAL
-  longitude        REAL
-  sharpness        REAL
-  analysis_version INTEGER
+  phash            INTEGER            -- 64비트
+  mean_rgb         INTEGER            -- 0xRRGGBB
+  gray_std         REAL
+  saturation       REAL
+  width, height    INTEGER            -- EXIF 회전 적용
+  taken_at         INTEGER            -- 밀리초
+  camera           TEXT
+  analysis_version INTEGER            -- 분석 완료 표시. 디코딩에 실패해도 기록
   error            TEXT
 
-  INDEX (sha256), INDEX (taken_at)
+  INDEX (sha256)
 
 kept_photos
   sha256           TEXT PRIMARY KEY
@@ -79,12 +80,15 @@ kept_photos
 
 folders
   path             TEXT PRIMARY KEY
-  bookmark         BLOB           -- macOS 보안 북마크
+  bookmark         TEXT               -- macOS 보안 북마크 (base64)
+  selected_at      INTEGER NOT NULL
 ```
 
+- 스키마 버전은 `PRAGMA user_version`으로 관리합니다. 선명도(v0.3)나 위치(v0.4)처럼 나중에 필요한 열은 그 버전에서 추가합니다.
 - "보관" 표시는 경로가 아니라 SHA-256에 저장합니다. 파일을 옮기거나 이름을 바꿔도 유지됩니다.
 - macOS 샌드박스는 재실행하면 폴더 접근 권한을 회수합니다. 폴더를 고를 때 보안 북마크를 저장하고, 실행할 때 복원해 접근합니다.
-- v0.1은 DB 없이 폴더와 북마크를 앱 데이터 폴더의 `settings.json`에 저장합니다. v0.2에서 DB를 도입할 때 `folders` 테이블로 옮깁니다.
+- v0.1의 `settings.json`은 v0.2 첫 실행 때 `folders`로 옮기고 지웁니다.
+- 디코딩할 수 없는 사진(Windows의 HEIC 등)도 SHA-256은 저장하므로 완전 동일 탐지에는 포함됩니다.
 - DB는 앱 데이터 폴더에 두며 사진 파일 옆에 아무것도 만들지 않습니다.
 
 ## 4. 삭제 흐름

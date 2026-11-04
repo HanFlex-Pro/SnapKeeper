@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// 실제 파일 입출력이 끝나 로딩 표시가 사라질 때까지 기다린다.
+/// 실제 파일 입출력이 끝나 로딩·분석 표시가 사라질 때까지 기다린다.
 /// 고정 시간을 기다리면 느린 CI 러너에서 실패한다.
 Future<void> pumpUntilLoaded(
   WidgetTester tester, {
@@ -15,7 +15,8 @@ Future<void> pumpUntilLoaded(
       () => Future<void>.delayed(const Duration(milliseconds: 50)),
     );
     await tester.pump();
-  } while (find.byType(CircularProgressIndicator).evaluate().isNotEmpty &&
+  } while ((find.byType(CircularProgressIndicator).evaluate().isNotEmpty ||
+          find.byType(LinearProgressIndicator).evaluate().isNotEmpty) &&
       DateTime.now().isBefore(deadline));
 }
 

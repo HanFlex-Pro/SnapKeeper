@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:snapkeeper/data/settings.dart';
+import 'package:snapkeeper/data/database.dart';
 import 'package:snapkeeper/main.dart';
 import 'package:snapkeeper/ui/library_page.dart';
 import 'package:snapkeeper/ui/viewer_page.dart';
@@ -11,17 +11,20 @@ import 'test_helpers.dart';
 
 void main() {
   late Directory temp;
-  late SettingsStore store;
+  late PhotoDatabase db;
 
   setUp(() {
     temp = Directory.systemTemp.createTempSync('snapkeeper_test');
-    store = SettingsStore(File('${temp.path}/settings.json'));
+    db = PhotoDatabase.memory();
   });
 
-  tearDown(() => deleteWithRetry(temp));
+  tearDown(() async {
+    db.dispose();
+    await deleteWithRetry(temp);
+  });
 
   Future<void> pumpApp(WidgetTester tester) async {
-    await tester.pumpWidget(SnapKeeperApp(store: store));
+    await tester.pumpWidget(SnapKeeperApp(db: db));
     await pumpUntilLoaded(tester);
   }
 
@@ -34,7 +37,7 @@ void main() {
   testWidgets('저장된 폴더가 있으면 다시 연다', (tester) async {
     final photos = Directory('${temp.path}/photos')..createSync();
     File('${photos.path}/a.jpg').writeAsStringSync('x');
-    store.save(Settings(folderPath: photos.path));
+    db.saveFolder(photos.path, null);
 
     await pumpApp(tester);
 
@@ -44,7 +47,7 @@ void main() {
   });
 
   testWidgets('저장된 폴더가 사라졌으면 다시 고르도록 안내한다', (tester) async {
-    store.save(Settings(folderPath: '${temp.path}/없는폴더'));
+    db.saveFolder('${temp.path}/없는폴더', null);
 
     await pumpApp(tester);
 
@@ -57,7 +60,7 @@ void main() {
     for (final name in ['a.jpg', 'b.png', 'c.heic']) {
       File('${photos.path}/$name').writeAsStringSync('이미지 아님');
     }
-    store.save(Settings(folderPath: photos.path));
+    db.saveFolder(photos.path, null);
 
     await pumpApp(tester);
 
@@ -79,7 +82,7 @@ void main() {
 
   testWidgets('지원하는 사진이 없으면 안내한다', (tester) async {
     final photos = Directory('${temp.path}/photos')..createSync();
-    store.save(Settings(folderPath: photos.path));
+    db.saveFolder(photos.path, null);
 
     await pumpApp(tester);
 
@@ -89,7 +92,7 @@ void main() {
   testWidgets('썸네일을 누르면 그 사진의 상세 화면을 연다', (tester) async {
     final photos = Directory('${temp.path}/photos')..createSync();
     File('${photos.path}/a.jpg').writeAsStringSync('x');
-    store.save(Settings(folderPath: photos.path));
+    db.saveFolder(photos.path, null);
     await pumpApp(tester);
 
     await tester.tap(find.byType(Thumbnail));

@@ -3,27 +3,31 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'data/settings.dart';
+import 'data/database.dart';
 import 'ui/library_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final dir = await getApplicationSupportDirectory();
-  runApp(
-    SnapKeeperApp(store: SettingsStore(File('${dir.path}/settings.json'))),
-  );
+  await dir.create(recursive: true);
+  final db =
+      PhotoDatabase.open('${dir.path}${Platform.pathSeparator}snapkeeper.db')
+        ..importLegacySettings(
+          File('${dir.path}${Platform.pathSeparator}settings.json'),
+        );
+  runApp(SnapKeeperApp(db: db));
 }
 
 class SnapKeeperApp extends StatelessWidget {
-  const SnapKeeperApp({super.key, required this.store});
+  const SnapKeeperApp({super.key, required this.db});
 
-  final SettingsStore store;
+  final PhotoDatabase db;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'SnapKeeper',
-      home: LibraryPage(store: store),
+      home: LibraryPage(db: db),
     );
   }
 }
