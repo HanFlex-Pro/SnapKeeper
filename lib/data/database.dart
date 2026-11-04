@@ -99,7 +99,9 @@ class PhotoDatabase {
 
   void saveFolder(String path, String? bookmark) {
     _db.execute(
-      'INSERT INTO folders(path, bookmark, selected_at) VALUES (?, ?, ?) '
+      // Windows는 시계 해상도가 낮아 연달아 저장하면 시각이 같을 수 있다. 항상 이전보다 크게 한다.
+      'INSERT INTO folders(path, bookmark, selected_at) VALUES (?, ?, '
+      'MAX(?, (SELECT COALESCE(MAX(selected_at), 0) + 1 FROM folders))) '
       'ON CONFLICT(path) DO UPDATE SET bookmark = excluded.bookmark, '
       'selected_at = excluded.selected_at',
       [path, bookmark, DateTime.now().microsecondsSinceEpoch],
