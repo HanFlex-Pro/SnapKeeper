@@ -46,14 +46,14 @@ class PhotoRecord {
   int get pixels => (width ?? 0) * (height ?? 0);
 }
 
-enum DuplicateKind { exact, near }
+enum DuplicateKind { exact, near, similar }
 
 class DuplicateGroup {
   const DuplicateGroup(this.kind, this.photos, this.reason);
 
   final DuplicateKind kind;
 
-  /// 첫 번째가 남길 사진으로 추천하는 사진.
+  /// 첫 번째가 남길 사진으로 추천하는 사진 (비슷한 사진은 베스트 컷).
   final List<PhotoRecord> photos;
 
   /// 사용자에게 보여 줄 탐지 이유.
@@ -82,19 +82,9 @@ List<DuplicateGroup> findDuplicates(
   List<PhotoRecord> photos, {
   Set<String> keptSha256 = const {},
 }) {
-  final candidates = [
-    for (final p in photos)
-      if (p.sha256 != null && !keptSha256.contains(p.sha256)) p,
-  ];
-
-  final byContent = <String, List<PhotoRecord>>{};
-  for (final p in candidates) {
-    byContent.putIfAbsent('${p.size}:${p.sha256}', () => []).add(p);
-  }
   final groups = <DuplicateGroup>[];
   final representatives = <PhotoRecord>[];
-  for (final same in byContent.values) {
-    same.sort(compareKeepPriority);
+  for (final same in groupByContent(photos, keptSha256: keptSha256)) {
     representatives.add(same.first);
     if (same.length > 1) {
       groups.add(DuplicateGroup(DuplicateKind.exact, same, '파일 내용이 완전히 같음'));
@@ -103,6 +93,20 @@ List<DuplicateGroup> findDuplicates(
 
   groups.addAll(_nearGroups(representatives));
   return groups;
+}
+
+/// 크기와 SHA-256이 같은 사진끼리 묶는다. 묶음마다 [compareKeepPriority] 순으로 정렬해,
+/// 첫 사진이 그 내용의 대표가 된다. 해시가 없거나 보관한 사진은 뺀다.
+List<List<PhotoRecord>> groupByContent(
+  List<PhotoRecord> photos, {
+  Set<String> keptSha256 = const {},
+}) {
+  final byContent = <String, List<PhotoRecord>>{};
+  for (final p in photos) {
+    if (p.sha256 == null || keptSha256.contains(p.sha256)) continue;
+    byContent.putIfAbsent('${p.size}:${p.sha256}', () => []).add(p);
+  }
+  return [for (final same in byContent.values) same..sort(compareKeepPriority)];
 }
 
 List<DuplicateGroup> _nearGroups(List<PhotoRecord> photos) {

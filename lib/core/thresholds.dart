@@ -24,3 +24,12 @@ const lowResolutionMaxPixels = 500000;
 
 /// 초점 불량: 선명도(타일별 라플라시안 분산의 최댓값)가 이보다 낮으면 후보.
 const blurryMaxSharpness = 40.0;
+
+/// 비슷한 사진: 그룹 첫 사진과의 촬영 시각 차이 상한(초).
+const similarMaxSeconds = 60;
+
+/// 비슷한 사진: 그룹 첫 사진과의 pHash 해밍 거리 상한. 거의 동일(2)보다 넓다.
+const similarMaxHamming = 12;
+
+/// 비슷한 사진: 두 사진 모두 위치가 있을 때 거리 상한(m).
+const similarMaxMeters = 100.0;
