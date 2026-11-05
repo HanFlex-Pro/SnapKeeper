@@ -36,7 +36,7 @@ void main() {
           in photos.entries)
         '${root.path}$sep$name': PhotoAnalysis(
           sha256: sha,
-          features: ImageFeatures(phash, 0x808080, 40, 50),
+          features: ImageFeatures(phash, 0x808080, 40, 50, 100),
           width: width,
           height: width * 3 ~/ 4,
         ),

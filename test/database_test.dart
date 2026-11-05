@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqlite3/sqlite3.dart';
 import 'package:snapkeeper/core/image_features.dart';
 import 'package:snapkeeper/data/database.dart';
 import 'package:snapkeeper/data/photo_scanner.dart';
@@ -13,7 +14,7 @@ void main() {
       PhotoFile(p(name), size, DateTime(2024, 1, day));
   const analysis = PhotoAnalysis(
     sha256: 'abc',
-    features: ImageFeatures(42, 0x808080, 30, 50),
+    features: ImageFeatures(42, 0x808080, 30, 50, 100),
     width: 4000,
     height: 3000,
   );
@@ -77,7 +78,7 @@ void main() {
     db.saveAnalyses({
       p('a.jpg'): PhotoAnalysis(
         sha256: 'abc',
-        features: const ImageFeatures(-5, 0x112233, 12.5, 40.25),
+        features: const ImageFeatures(-5, 0x112233, 12.5, 40.25, 100),
         width: 4000,
         height: 3000,
         takenAt: DateTime(2023, 5, 1, 14, 30),
@@ -172,5 +173,65 @@ void main() {
     final reopened = PhotoDatabase.open(path);
     addTearDown(reopened.dispose);
     expect(reopened.lastFolder()?.path, '/a');
+  });
+
+  test('v1 DB를 열면 v2로 바꾸고 모든 사진을 다시 분석한다', () {
+    final temp = Directory.systemTemp.createTempSync('snapkeeper_migrate');
+    addTearDown(() => temp.deleteSync(recursive: true));
+    final path = '${temp.path}${sep}v1.db';
+    // v0.2에서 만든 DB와 같은 구조
+    sqlite3.open(path)
+      ..execute('''
+        CREATE TABLE photos(id INTEGER PRIMARY KEY, path TEXT NOT NULL UNIQUE,
+          size_bytes INTEGER NOT NULL, modified_at INTEGER NOT NULL, sha256 TEXT,
+          phash INTEGER, mean_rgb INTEGER, gray_std REAL, saturation REAL,
+          width INTEGER, height INTEGER, taken_at INTEGER, camera TEXT,
+          analysis_version INTEGER, error TEXT);
+        CREATE INDEX photos_sha256 ON photos(sha256);
+        CREATE TABLE kept_photos(sha256 TEXT PRIMARY KEY, kept_at INTEGER NOT NULL);
+        CREATE TABLE folders(path TEXT PRIMARY KEY, bookmark TEXT, selected_at INTEGER NOT NULL);
+        PRAGMA user_version = 1;
+      ''')
+      ..execute(
+        'INSERT INTO photos(path, size_bytes, modified_at, sha256, analysis_version) VALUES (?, ?, ?, ?, 1)',
+        [p('a.jpg'), 10, DateTime(2024).millisecondsSinceEpoch, 'old'],
+      )
+      ..execute('INSERT INTO kept_photos VALUES (?, ?)', ['kept', 1])
+      ..close();
+
+    final migrated = PhotoDatabase.open(path);
+    addTearDown(migrated.dispose);
+
+    expect(migrated.sync(root, [file('a.jpg')]), [p('a.jpg')]);
+    expect(migrated.keptSha256(), {'kept'});
+    migrated.saveAnalyses({
+      p('a.jpg'): const PhotoAnalysis(
+        sha256: 'new',
+        features: ImageFeatures(1, 0, 30, 50, 123.5),
+        latitude: 37.5,
+        longitude: -122.25,
+      ),
+    });
+    final r = migrated.records(root).single;
+    expect((r.sharpness, r.latitude, r.longitude), (123.5, 37.5, -122.25));
+    expect(migrated.sync(root, [file('a.jpg')]), isEmpty);
+  });
+
+  test('소수점 없는 실수도 읽는다', () {
+    db.sync(root, [file('a.jpg')]);
+    db.saveAnalyses({
+      p('a.jpg'): const PhotoAnalysis(
+        sha256: 'x',
+        features: ImageFeatures(1, 0, 30, 50, 40),
+        latitude: 37,
+        longitude: 127,
+      ),
+    });
+
+    final r = db.records(root).single;
+    expect(
+      (r.grayStd, r.saturation, r.sharpness, r.latitude),
+      (30.0, 50.0, 40.0, 37.0),
+    );
   });
 }

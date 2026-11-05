@@ -15,6 +15,11 @@ class PhotoRecord {
     this.width,
     this.height,
     this.takenAt,
+    this.camera,
+    this.sharpness,
+    this.latitude,
+    this.longitude,
+    this.error,
   });
 
   final String path;
@@ -28,6 +33,15 @@ class PhotoRecord {
   final int? width;
   final int? height;
   final DateTime? takenAt;
+
+  /// EXIF 제조사·모델. 없으면 카메라로 찍은 사진이 아닐 가능성이 크다.
+  final String? camera;
+  final double? sharpness;
+  final double? latitude;
+  final double? longitude;
+
+  /// 분석 중 오류 (디코딩 실패 등).
+  final String? error;
 
   int get pixels => (width ?? 0) * (height ?? 0);
 }

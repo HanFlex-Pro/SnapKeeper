@@ -14,7 +14,7 @@ let ctx = CGContext(
   bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
 let image = ctx.makeImage()!
 
-func save(_ name: String, _ type: UTType, exif: Bool) {
+func save(_ name: String, _ type: UTType, exif: Bool, gps: (Double, String, Double, String)? = nil) {
   let dest = CGImageDestinationCreateWithURL(
     URL(fileURLWithPath: "\(out)/\(name)") as CFURL, type.identifier as CFString, 1, nil)!
   var props: [CFString: Any] = [:]
@@ -26,12 +26,18 @@ func save(_ name: String, _ type: UTType, exif: Bool) {
       kCGImagePropertyExifDateTimeOriginal: "2023:05:01 14:30:15"
     ]
   }
+  if let (lat, latRef, lon, lonRef) = gps {
+    props[kCGImagePropertyGPSDictionary] = [
+      kCGImagePropertyGPSLatitude: lat, kCGImagePropertyGPSLatitudeRef: latRef,
+      kCGImagePropertyGPSLongitude: lon, kCGImagePropertyGPSLongitudeRef: lonRef,
+    ]
+  }
   CGImageDestinationAddImage(dest, image, props as CFDictionary)
   precondition(CGImageDestinationFinalize(dest), name)
 }
 
-save("exif.jpg", .jpeg, exif: true)
-save("exif.heic", .heic, exif: true)
+save("exif.jpg", .jpeg, exif: true, gps: (37.5665, "N", 126.978, "E"))
+save("exif.heic", .heic, exif: true, gps: (37.7749, "N", 122.4194, "W"))
 save("plain.png", .png, exif: false)
 
 // 화질만 다른 같은 장면 (거의 동일 탐지 테스트용)
