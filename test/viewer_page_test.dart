@@ -137,4 +137,57 @@ void main() {
     expect(await tracked(2), isTrue);
     await finishPendingIo(tester);
   });
+
+  group('확대/축소', () {
+    double scaleOf(WidgetTester tester) => tester
+        .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+        .transformationController!
+        .value
+        .getMaxScaleOnAxis();
+    ImageProvider shown(WidgetTester tester) =>
+        tester.widget<Image>(find.byType(Image)).image;
+
+    testWidgets('+로 확대하면 원본 해상도로 다시 읽고, 0으로 화면에 맞춘다', (tester) async {
+      await openViewer(tester, 0);
+      expect(shown(tester), isA<ResizeImage>());
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.equal, character: '+');
+      await tester.pump();
+      expect(scaleOf(tester), closeTo(2, 0.001));
+      expect(shown(tester), isA<FileImage>());
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit0, character: '0');
+      await tester.pump();
+      expect(scaleOf(tester), closeTo(1, 0.001));
+    });
+
+    testWidgets('배율은 8배까지, -로 줄이면 1배 아래로 내려가지 않는다', (tester) async {
+      await openViewer(tester, 0);
+
+      for (var i = 0; i < 5; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.equal, character: '+');
+      }
+      await tester.pump();
+      expect(scaleOf(tester), closeTo(8, 0.001));
+
+      for (var i = 0; i < 5; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.minus, character: '-');
+      }
+      await tester.pump();
+      expect(scaleOf(tester), closeTo(1, 0.001));
+    });
+
+    testWidgets('다른 사진으로 넘어가면 확대와 원본 해상도를 초기화한다', (tester) async {
+      await openViewer(tester, 0);
+      await tester.sendKeyEvent(LogicalKeyboardKey.equal, character: '+');
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pump();
+
+      expect(find.textContaining('2 / 3'), findsOneWidget);
+      expect(scaleOf(tester), closeTo(1, 0.001));
+      expect(shown(tester), isA<ResizeImage>());
+    });
+  });
 }
