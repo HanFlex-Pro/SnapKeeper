@@ -10,6 +10,7 @@ import '../platform/background_activity.dart';
 import '../platform/folder_access.dart';
 import 'duplicates_page.dart';
 import 'quality_page.dart';
+import 'similar_page.dart';
 import 'viewer_page.dart';
 
 class LibraryPage extends StatefulWidget {
@@ -231,6 +232,17 @@ class _LibraryPageState extends State<LibraryPage> {
                   : null,
               icon: const Icon(Icons.auto_fix_high),
               label: const Text('품질 정리'),
+            ),
+          if (folder != null && _scan != null)
+            TextButton.icon(
+              onPressed: _analysis == null
+                  ? () => _openReview(
+                      SimilarPage(db: widget.db, folder: folder),
+                      folder,
+                    )
+                  : null,
+              icon: const Icon(Icons.burst_mode_outlined),
+              label: const Text('비슷한 사진'),
             ),
           if (folder != null)
             TextButton.icon(

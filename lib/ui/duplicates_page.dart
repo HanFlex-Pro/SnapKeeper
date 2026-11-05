@@ -134,7 +134,7 @@ class _DuplicatesPageState extends State<DuplicatesPage> {
                 Expanded(
                   child: ListView.builder(
                     itemCount: groups.length,
-                    itemBuilder: (context, i) => _GroupCard(
+                    itemBuilder: (context, i) => GroupCard(
                       group: groups[i],
                       selected: _selected,
                       onToggle: _toggle,
@@ -174,66 +174,5 @@ class _DuplicatesPageState extends State<DuplicatesPage> {
     final bytes = groups.fold(0, (sum, g) => sum + g.reclaimableBytes);
     return '완전 동일 $exact그룹 · 거의 동일 $near그룹 · '
         '추천 사진만 남기면 ${formatBytes(bytes)} 확보';
-  }
-}
-
-class _GroupCard extends StatelessWidget {
-  const _GroupCard({
-    required this.group,
-    required this.selected,
-    required this.onToggle,
-    required this.onKeep,
-  });
-
-  final DuplicateGroup group;
-  final Set<String> selected;
-  final void Function(String path) onToggle;
-  final VoidCallback onKeep;
-
-  @override
-  Widget build(BuildContext context) {
-    final files = group.photos.map(toPhotoFile).toList();
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${group.kind == DuplicateKind.exact ? '완전 동일' : '거의 동일'}'
-                    ' · ${group.photos.length}장 · ${group.reason}',
-                  ),
-                ),
-                TextButton(onPressed: onKeep, child: const Text('이 그룹 보관')),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (var i = 0; i < files.length; i++)
-                  CandidateTile(
-                    photo: files[i],
-                    badge: i == 0 ? '남길 사진 추천' : null,
-                    selected: selected.contains(files[i].path),
-                    onToggle: () => onToggle(files[i].path),
-                    onOpen: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            ViewerPage(photos: files, initialIndex: i),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

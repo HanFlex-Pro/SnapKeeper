@@ -118,6 +118,87 @@ class CandidateTile extends StatelessWidget {
   }
 }
 
+/// 그룹 한 개: 분류·장수·탐지 이유, 그룹 보관, 사진 타일. 첫 사진에 [badge]를 붙인다.
+/// [onSelectOthers]가 있으면 "추천 외 모두 선택" 버튼을 보여 준다.
+class GroupCard extends StatelessWidget {
+  const GroupCard({
+    super.key,
+    required this.group,
+    required this.selected,
+    required this.onToggle,
+    required this.onKeep,
+    this.badge = '남길 사진 추천',
+    this.onSelectOthers,
+    this.selectOthersLabel = '추천 외 모두 선택',
+  });
+
+  final DuplicateGroup group;
+  final Set<String> selected;
+  final void Function(String path) onToggle;
+  final VoidCallback onKeep;
+  final String badge;
+  final VoidCallback? onSelectOthers;
+  final String selectOthersLabel;
+
+  static const _kindTitles = {
+    DuplicateKind.exact: '완전 동일',
+    DuplicateKind.near: '거의 동일',
+    DuplicateKind.similar: '비슷한 사진',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final files = group.photos.map(toPhotoFile).toList();
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${_kindTitles[group.kind]}'
+                    ' · ${group.photos.length}장 · ${group.reason}',
+                  ),
+                ),
+                if (onSelectOthers != null)
+                  TextButton(
+                    onPressed: onSelectOthers,
+                    child: Text(selectOthersLabel),
+                  ),
+                TextButton(onPressed: onKeep, child: const Text('이 그룹 보관')),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (var i = 0; i < files.length; i++)
+                  CandidateTile(
+                    photo: files[i],
+                    badge: i == 0 ? badge : null,
+                    selected: selected.contains(files[i].path),
+                    onToggle: () => onToggle(files[i].path),
+                    onOpen: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            ViewerPage(photos: files, initialIndex: i),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// 휴지통으로 옮기기 전 확인. 그룹의 사진을 모두 지우려 하면 별도로 확인받는다.
 class ConfirmTrashDialog extends StatefulWidget {
   const ConfirmTrashDialog({
