@@ -18,3 +18,9 @@ const nearDuplicateMaxSaturationDiff = 10.0;
 
 /// 밝기 표준편차가 이 값보다 작으면 평탄한 이미지로 보고 거의 동일 비교에서 뺀다.
 const flatImageMaxGrayStd = 6.0;
+
+/// 저화질: 총 픽셀 수가 이보다 적으면 후보. 카메라 EXIF가 있는 사진은 제외한다.
+const lowResolutionMaxPixels = 500000;
+
+/// 초점 불량: 선명도(타일별 라플라시안 분산의 최댓값)가 이보다 낮으면 후보.
+const blurryMaxSharpness = 40.0;
