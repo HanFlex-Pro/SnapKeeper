@@ -234,4 +234,40 @@ void main() {
       (30.0, 50.0, 40.0, 37.0),
     );
   });
+
+  test('v2 DB를 열면 v3로 바꾸고 카메라 정보가 없는 사진만 다시 분석한다', () {
+    final temp = Directory.systemTemp.createTempSync('snapkeeper_migrate3');
+    addTearDown(() => temp.deleteSync(recursive: true));
+    final path = '${temp.path}${sep}v2.db';
+    // v2 상태를 만든다: 최신 앱으로 만든 뒤 열 하나를 지우고 버전을 2로 되돌린다.
+    PhotoDatabase.open(path)
+      ..sync(root, [file('camera.jpg'), file('nocamera.png')])
+      ..saveAnalyses({
+        p('camera.jpg'): const PhotoAnalysis(sha256: 'a', camera: 'Canon'),
+        p('nocamera.png'): const PhotoAnalysis(sha256: 'b'),
+      })
+      ..dispose();
+    sqlite3.open(path)
+      ..execute('ALTER TABLE photos DROP COLUMN screenshot_marker')
+      ..execute('PRAGMA user_version = 2')
+      ..close();
+
+    final migrated = PhotoDatabase.open(path);
+    addTearDown(migrated.dispose);
+
+    expect(migrated.sync(root, [file('camera.jpg'), file('nocamera.png')]), [
+      p('nocamera.png'),
+    ]);
+    migrated.saveAnalyses({
+      p('nocamera.png'): const PhotoAnalysis(
+        sha256: 'b',
+        screenshotMarker: true,
+      ),
+    });
+    final byName = {
+      for (final r in migrated.records(root)) fileName(r.path): r,
+    };
+    expect(byName['nocamera.png']!.screenshotMarker, isTrue);
+    expect(byName['camera.jpg']!.screenshotMarker, isNull);
+  });
 }

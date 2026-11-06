@@ -22,6 +22,7 @@ class PhotoAnalysis {
     this.latitude,
     this.longitude,
     this.error,
+    this.screenshotMarker = false,
   });
 
   final String sha256;
@@ -33,6 +34,7 @@ class PhotoAnalysis {
   final double? latitude;
   final double? longitude;
   final String? error;
+  final bool screenshotMarker;
 }
 
 /// 앱 데이터 폴더의 SQLite DB. 사진 분석 결과, 보관한 사진, 고른 폴더를 저장한다.
@@ -92,6 +94,14 @@ class PhotoDatabase {
         ALTER TABLE photos ADD COLUMN latitude REAL;
         ALTER TABLE photos ADD COLUMN longitude REAL;
         PRAGMA user_version = 2;
+      ''');
+    }
+    if (version < 3) {
+      // 캡처 표시는 카메라 정보가 없는 사진에만 있으므로, 그 사진만 다시 분석한다.
+      _db.execute('''
+        ALTER TABLE photos ADD COLUMN screenshot_marker INTEGER;
+        UPDATE photos SET analysis_version = NULL WHERE camera IS NULL;
+        PRAGMA user_version = 3;
       ''');
     }
   }
@@ -163,7 +173,8 @@ class PhotoDatabase {
         'phash = NULL, mean_rgb = NULL, gray_std = NULL, saturation = NULL, '
         'width = NULL, height = NULL, taken_at = NULL, camera = NULL, '
         'sharpness = NULL, latitude = NULL, longitude = NULL, '
-        'analysis_version = NULL, error = NULL WHERE path = ?',
+        'screenshot_marker = NULL, analysis_version = NULL, error = NULL '
+        'WHERE path = ?',
       );
       for (final file in listed) {
         final modified = file.modified.millisecondsSinceEpoch;
@@ -194,7 +205,7 @@ class PhotoDatabase {
       final update = _db.prepare(
         'UPDATE photos SET sha256 = ?, phash = ?, mean_rgb = ?, gray_std = ?, '
         'saturation = ?, width = ?, height = ?, taken_at = ?, camera = ?, '
-        'sharpness = ?, latitude = ?, longitude = ?, '
+        'sharpness = ?, latitude = ?, longitude = ?, screenshot_marker = ?, '
         'analysis_version = ?, error = ? WHERE path = ?',
       );
       for (final MapEntry(key: path, value: a) in results.entries) {
@@ -211,6 +222,7 @@ class PhotoDatabase {
           a.features?.sharpness,
           a.latitude,
           a.longitude,
+          a.screenshotMarker ? 1 : 0,
           analysisVersion,
           a.error,
           path,
@@ -248,6 +260,10 @@ class PhotoDatabase {
         latitude: _real(row['latitude']),
         longitude: _real(row['longitude']),
         error: row['error'] as String?,
+        screenshotMarker: switch (row['screenshot_marker']) {
+          final int v => v == 1,
+          _ => null,
+        },
       ),
   ];
 

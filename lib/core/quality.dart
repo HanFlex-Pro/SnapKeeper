@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'duplicates.dart';
 import 'thresholds.dart';
 
@@ -42,17 +45,18 @@ Map<QualityIssue, List<QualityCandidate>> findQualityIssues(
         ),
       );
     }
-    final sharpness = p.sharpness;
-    if (sharpness != null &&
-        sharpness < blurryMaxSharpness &&
-        (p.grayStd ?? 0) >= flatImageMaxGrayStd) {
-      result[QualityIssue.blurry]!.add(
-        QualityCandidate(
-          p,
-          QualityIssue.blurry,
+    final grayStd = p.grayStd, sharpness = p.sharpness;
+    String? blurReason;
+    if (grayStd != null && grayStd < nearlyBlankMaxGrayStd) {
+      blurReason = '거의 단색 (밝기 편차 ${grayStd.toStringAsFixed(0)})';
+    } else if (sharpness != null && sharpness < blurryMaxSharpness) {
+      blurReason =
           '선명도 ${sharpness.toStringAsFixed(0)}, '
-          '기준 ${blurryMaxSharpness.toStringAsFixed(0)} 미만',
-        ),
+          '기준 ${blurryMaxSharpness.toStringAsFixed(0)} 미만';
+    }
+    if (blurReason != null) {
+      result[QualityIssue.blurry]!.add(
+        QualityCandidate(p, QualityIssue.blurry, blurReason),
       );
     }
   }
@@ -63,7 +67,7 @@ Map<QualityIssue, List<QualityCandidate>> findQualityIssues(
     (a, b) => a.photo.pixels.compareTo(b.photo.pixels),
   );
   result[QualityIssue.blurry]!.sort(
-    (a, b) => a.photo.sharpness!.compareTo(b.photo.sharpness!),
+    (a, b) => (a.photo.sharpness ?? 0).compareTo(b.photo.sharpness ?? 0),
   );
   return result;
 }
@@ -95,6 +99,7 @@ const _screenSizes = {
 
 /// 캡처로 볼 근거. 카메라 EXIF가 있으면 카메라로 찍은 사진으로 보고 null.
 String? screenshotReason(PhotoRecord p) {
+  if (p.screenshotMarker == true) return '캡처 표시가 있음 (iPhone·macOS)';
   if (p.camera != null) return null;
   final parts = p.path.split(RegExp(r'[\\/]'));
   final name = parts.last.toLowerCase();
@@ -116,3 +121,27 @@ String? screenshotReason(PhotoRecord p) {
 }
 
 String _mp(int pixels) => (pixels / 1000000).toStringAsFixed(2);
+
+final _markers = [
+  ascii.encode('ASCII\u0000\u0000\u0000Screenshot'), // EXIF 사용자 메모
+  ascii.encode('<exif:UserComment>Screenshot<'), // XMP
+];
+
+/// iPhone·macOS 캡처는 EXIF 사용자 메모와 XMP에 "Screenshot"을 남긴다.
+/// exif 패키지는 PNG 안의 EXIF를 읽지 못해 파일 앞부분 바이트에서 직접 찾는다.
+bool hasScreenshotMarker(Uint8List head) {
+  for (final m in _markers) {
+    outer:
+    for (var i = 0; i + m.length <= head.length; i++) {
+      if (head[i] != m[0]) continue;
+      for (var j = 1; j < m.length; j++) {
+        if (head[i + j] != m[j]) continue outer;
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
+/// 표시를 찾을 파일 앞부분 크기.
+const screenshotMarkerScanBytes = 256 * 1024;

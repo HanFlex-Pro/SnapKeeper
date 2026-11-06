@@ -10,9 +10,13 @@ import 'thresholds.dart';
 /// 조금씩 다른 사진이 끝없이 이어 붙기 때문이다.
 /// 완전 동일 사진은 대표 한 장만 쓰고, 촬영일·해시·크기가 없거나 분석에 실패했거나
 /// 보관한 사진은 뺀다.
+/// [maxSeconds], [maxHamming], [maxMeters]는 기준값 비교(tool/)용이며 기본값은 thresholds.dart.
 List<DuplicateGroup> findSimilarGroups(
   List<PhotoRecord> photos, {
   Set<String> keptSha256 = const {},
+  int maxSeconds = similarMaxSeconds,
+  int maxHamming = similarMaxHamming,
+  double maxMeters = similarMaxMeters,
 }) {
   final candidates = [
     for (final same in groupByContent(photos, keptSha256: keptSha256))
@@ -26,7 +30,8 @@ List<DuplicateGroup> findSimilarGroups(
   }
 
   for (final p in candidates) {
-    if (current.isNotEmpty && _belongs(current.first, p)) {
+    if (current.isNotEmpty &&
+        _belongs(current.first, p, maxSeconds, maxHamming, maxMeters)) {
       current.add(p);
     } else {
       close();
@@ -40,11 +45,17 @@ List<DuplicateGroup> findSimilarGroups(
 bool _usable(PhotoRecord p) =>
     p.takenAt != null && p.phash != null && p.pixels > 0 && p.error == null;
 
-bool _belongs(PhotoRecord first, PhotoRecord p) {
-  if (p.takenAt!.difference(first.takenAt!).inSeconds > similarMaxSeconds) {
+bool _belongs(
+  PhotoRecord first,
+  PhotoRecord p,
+  int maxSeconds,
+  int maxHamming,
+  double maxMeters,
+) {
+  if (p.takenAt!.difference(first.takenAt!).inSeconds > maxSeconds) {
     return false;
   }
-  if (hammingDistance(first.phash!, p.phash!) > similarMaxHamming) return false;
+  if (hammingDistance(first.phash!, p.phash!) > maxHamming) return false;
   final (lat1, lon1, lat2, lon2) = (
     first.latitude,
     first.longitude,
@@ -52,7 +63,7 @@ bool _belongs(PhotoRecord first, PhotoRecord p) {
     p.longitude,
   );
   if (lat1 != null && lon1 != null && lat2 != null && lon2 != null) {
-    return distanceMeters(lat1, lon1, lat2, lon2) <= similarMaxMeters;
+    return distanceMeters(lat1, lon1, lat2, lon2) <= maxMeters;
   }
   return true;
 }
