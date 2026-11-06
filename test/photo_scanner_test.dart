@@ -143,4 +143,22 @@ void main() {
 
     expect(sorted.map((p) => p.name), ['a.jpg', 'b.jpg']);
   });
+
+  test('정보를 읽을 수 없는 파일은 건너뛰고 수를 센다', () {
+    if (Platform.isWindows) {
+      markTestSkipped('Windows에서는 폴더 실행 권한으로 재현할 수 없음');
+      return;
+    }
+    touch('ok.jpg', DateTime(2024));
+    touch('locked/a.jpg', DateTime(2024));
+    final locked = '${root.path}${sep}locked';
+    // 읽기 권한만 남기면 목록은 보이지만 파일 정보는 읽을 수 없다.
+    Process.runSync('chmod', ['444', locked]);
+    addTearDown(() => Process.runSync('chmod', ['755', locked]));
+
+    final result = scanPhotosSync(root.path);
+
+    expect(names(result), ['ok.jpg']);
+    expect(result.unreadableFiles, 1);
+  });
 }
