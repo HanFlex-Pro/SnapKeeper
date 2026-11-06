@@ -30,6 +30,9 @@ class _LibraryPageState extends State<LibraryPage> {
 
   /// 분석 진행 (끝난 수, 전체 수). 분석 중이 아니면 null.
   (int, int)? _analysis;
+
+  /// 분석할 때 열지 못한 파일 수 (다음 스캔에서 다시 시도).
+  int _unreadableOnAnalysis = 0;
   int _generation = 0;
 
   @override
@@ -78,6 +81,7 @@ class _LibraryPageState extends State<LibraryPage> {
     setState(() {
       _scan = null;
       _analysis = null;
+      _unreadableOnAnalysis = 0;
     });
     final scan = await scanPhotos(folder);
     if (!mounted || generation != _generation) return;
@@ -101,6 +105,7 @@ class _LibraryPageState extends State<LibraryPage> {
       () => _scan = ScanResult(
         sortByCaptureDate(scan.photos, takenAt),
         scan.skippedFolders,
+        unreadableFiles: scan.unreadableFiles,
       ),
     );
   }
@@ -110,7 +115,7 @@ class _LibraryPageState extends State<LibraryPage> {
     setState(() => _analysis = (0, pending.length));
     await BackgroundActivity.begin('사진 분석');
     try {
-      await analyzePhotos(
+      final unreadable = await analyzePhotos(
         widget.db,
         pending,
         isCancelled: stale,
@@ -118,6 +123,7 @@ class _LibraryPageState extends State<LibraryPage> {
           if (!stale()) setState(() => _analysis = (done, total));
         },
       );
+      if (!stale()) setState(() => _unreadableOnAnalysis = unreadable);
     } finally {
       await BackgroundActivity.end();
     }
@@ -177,6 +183,8 @@ class _LibraryPageState extends State<LibraryPage> {
             [
               '사진 ${photos.length}장',
               if (scan.skippedFolders > 0) '읽지 못한 폴더 ${scan.skippedFolders}개',
+              if (scan.unreadableFiles + _unreadableOnAnalysis > 0)
+                '읽지 못한 파일 ${scan.unreadableFiles + _unreadableOnAnalysis}개',
               if (analysis != null) '분석 중 ${analysis.$1} / ${analysis.$2}',
             ].join(' · '),
           ),

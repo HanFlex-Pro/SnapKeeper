@@ -22,13 +22,21 @@ String fileName(String path, {bool windows = false}) {
 }
 
 class ScanResult {
-  const ScanResult(this.photos, this.skippedFolders);
+  const ScanResult(
+    this.photos,
+    this.skippedFolders, {
+    this.unreadableFiles = 0,
+  });
 
   /// 최신 수정 순, 같으면 파일명 순.
   final List<PhotoFile> photos;
 
   /// 권한 등으로 읽지 못한 폴더 수.
   final int skippedFolders;
+
+  /// 목록에는 있지만 정보를 읽을 수 없는 사진 수.
+  /// 예: exFAT 외장 드라이브에서 macOS가 보여 주기만 하고 열지 못하는 한글 이름 파일.
+  final int unreadableFiles;
 }
 
 /// [root] 아래의 지원 형식 사진을 모은다. UI가 멈추지 않도록 Isolate에서 실행한다.
@@ -39,7 +47,7 @@ Future<ScanResult> scanPhotos(String root) =>
 /// 이름이 `.`으로 시작하는 파일과 폴더는 건너뛴다(`.Trashes`, `._IMG.jpg` 같은 시스템 파일).
 ScanResult scanPhotosSync(String root) {
   final photos = <PhotoFile>[];
-  var skipped = 0;
+  var skipped = 0, unreadable = 0;
   final pending = [Directory(root)];
   while (pending.isNotEmpty) {
     final dir = pending.removeLast();
@@ -56,11 +64,13 @@ ScanResult scanPhotosSync(String root) {
       if (entry is Directory) {
         pending.add(entry);
       } else if (entry is File && _isSupported(name)) {
-        try {
-          final stat = entry.statSync();
+        // statSync는 실패해도 예외 대신 notFound를 돌려준다. 목록 수집 중에 지워졌거나,
+        // 목록에만 보이고 열 수 없는 파일이다.
+        final stat = entry.statSync();
+        if (stat.type == FileSystemEntityType.notFound) {
+          unreadable++;
+        } else {
           photos.add(PhotoFile(entry.path, stat.size, stat.modified));
-        } on FileSystemException {
-          // 목록 수집 중에 지워진 파일
         }
       }
     }
@@ -69,7 +79,7 @@ ScanResult scanPhotosSync(String root) {
     final byTime = b.modified.compareTo(a.modified);
     return byTime != 0 ? byTime : a.name.compareTo(b.name);
   });
-  return ScanResult(photos, skipped);
+  return ScanResult(photos, skipped, unreadableFiles: unreadable);
 }
 
 /// 촬영일(없으면 수정일) 최신 순, 같으면 파일명 순.

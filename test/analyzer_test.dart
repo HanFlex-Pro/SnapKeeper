@@ -101,8 +101,9 @@ void main() {
     final pending = db.sync(root.path, scanPhotosSync(root.path).photos);
     File('${root.path}${sep}a.jpg').deleteSync();
 
-    await tester.runAsync(() => analyzePhotos(db, pending));
+    final unreadable = await tester.runAsync(() => analyzePhotos(db, pending));
 
+    expect(unreadable, 1);
     expect(db.records(root.path).single.sha256, isNull);
   });
 

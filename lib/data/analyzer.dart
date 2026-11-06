@@ -17,7 +17,9 @@ import 'photo_info.dart';
 /// - 디코딩은 메인 Isolate에서만 된다(M0 검증). 해시·EXIF·특징 계산만 Isolate에서 한다.
 /// - 묶음 단위로 저장하므로 중간에 멈춰도 다음 실행에서 남은 것만 분석한다.
 /// - [isCancelled]가 true가 되면 진행 중인 파일까지만 처리하고 멈춘다.
-Future<void> analyzePhotos(
+///
+/// 열 수 없었던 파일 수를 돌려준다. 그런 파일은 저장하지 않으므로 다음 스캔에서 다시 시도한다.
+Future<int> analyzePhotos(
   PhotoDatabase db,
   List<String> paths, {
   void Function(int done, int total)? onProgress,
@@ -25,7 +27,7 @@ Future<void> analyzePhotos(
   int workers = 4,
   int batchSize = 50,
 }) async {
-  var next = 0, done = 0;
+  var next = 0, done = 0, unreadable = 0;
   final batch = <String, PhotoAnalysis>{};
 
   void flush() {
@@ -38,7 +40,11 @@ Future<void> analyzePhotos(
     while (next < paths.length && !(isCancelled?.call() ?? false)) {
       final path = paths[next++];
       final result = await analyzePhoto(path);
-      if (result != null) batch[path] = result;
+      if (result == null) {
+        unreadable++;
+      } else {
+        batch[path] = result;
+      }
       done++;
       if (batch.length >= batchSize) flush();
       onProgress?.call(done, paths.length);
@@ -47,6 +53,7 @@ Future<void> analyzePhotos(
 
   await Future.wait(List.generate(workers, (_) => worker()));
   flush();
+  return unreadable;
 }
 
 /// 파일을 읽을 수 없으면(분석 중 삭제 등) null. 다음 스캔에서 정리된다.
