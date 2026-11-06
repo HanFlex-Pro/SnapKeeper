@@ -105,4 +105,23 @@ void main() {
 
     expect(db.records(root.path).single.sha256, isNull);
   });
+
+  testWidgets('카메라 정보가 없는 사진의 캡처 표시를 저장한다', (tester) async {
+    final png = File('test/fixtures/plain.png').readAsBytesSync();
+    // 실제 iPhone 캡처처럼 XMP에 표시를 넣는다 (PNG 끝에 붙여도 앞 256KB 안이면 찾는다).
+    File('${root.path}${sep}IMG_0001.PNG').writeAsBytesSync([
+      ...png,
+      ...'<exif:UserComment>Screenshot</exif:UserComment>'.codeUnits,
+    ]);
+    copyFixture('plain.png', 'plain.png');
+    copyFixture('exif.jpg', 'camera.jpg');
+
+    final byName = {
+      for (final r in await scanAndAnalyze(tester)) fileName(r.path): r,
+    };
+
+    expect(byName['IMG_0001.PNG']!.screenshotMarker, isTrue);
+    expect(byName['plain.png']!.screenshotMarker, isFalse);
+    expect(byName['camera.jpg']!.screenshotMarker, isFalse);
+  });
 }

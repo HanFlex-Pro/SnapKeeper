@@ -7,6 +7,7 @@ import 'dart:ui' as ui;
 import 'package:crypto/crypto.dart';
 
 import '../core/image_features.dart';
+import '../core/quality.dart';
 import '../core/thresholds.dart';
 import 'database.dart';
 import 'photo_info.dart';
@@ -64,13 +65,23 @@ Future<PhotoAnalysis?> analyzePhoto(String path) async {
     error = '디코딩 실패: $e';
   }
   final rgba = decoded?.rgba, w = decoded?.width ?? 0, h = decoded?.height ?? 0;
-  final (sha, features, exif) = await Isolate.run(
-    () async => (
+  final (sha, features, exif, marker) = await Isolate.run(() async {
+    final exif = await readExifFields(bytes);
+    return (
       sha256.convert(bytes).toString(),
       rgba == null ? null : computeFeatures(rgba, w, h),
-      await readExifFields(bytes),
-    ),
-  );
+      exif,
+      // 카메라로 찍은 사진은 캡처가 아니므로 찾지 않는다.
+      exif.camera == null &&
+          hasScreenshotMarker(
+            Uint8List.sublistView(
+              bytes,
+              0,
+              min(bytes.length, screenshotMarkerScanBytes),
+            ),
+          ),
+    );
+  });
   return PhotoAnalysis(
     sha256: sha,
     features: features,
@@ -80,6 +91,7 @@ Future<PhotoAnalysis?> analyzePhoto(String path) async {
     camera: exif.camera,
     latitude: exif.latitude,
     longitude: exif.longitude,
+    screenshotMarker: marker,
     error: error,
   );
 }

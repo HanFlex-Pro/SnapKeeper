@@ -22,6 +22,10 @@ const flatImageMaxGrayStd = 6.0;
 /// 저화질: 총 픽셀 수가 이보다 적으면 후보. 카메라 EXIF가 있는 사진은 제외한다.
 const lowResolutionMaxPixels = 500000;
 
+/// 거의 단색: 밝기 표준편차가 이보다 작으면 실수로 찍힌 사진(빈 벽, 새까만 화면, 렌즈 가림) 후보.
+/// 사용자 사진 12만 장 표본에서 정밀도가 높았다 (DETECTION.md).
+const nearlyBlankMaxGrayStd = 10.0;
+
 /// 초점 불량: 선명도(타일별 라플라시안 분산의 최댓값)가 이보다 낮으면 후보.
 const blurryMaxSharpness = 40.0;
 

@@ -20,6 +20,7 @@ class PhotoRecord {
     this.latitude,
     this.longitude,
     this.error,
+    this.screenshotMarker,
   });
 
   final String path;
@@ -42,6 +43,9 @@ class PhotoRecord {
 
   /// 분석 중 오류 (디코딩 실패 등).
   final String? error;
+
+  /// 파일에 iPhone·macOS가 남기는 "Screenshot" 표시가 있는지. 분석 전이면 null.
+  final bool? screenshotMarker;
 
   int get pixels => (width ?? 0) * (height ?? 0);
 }

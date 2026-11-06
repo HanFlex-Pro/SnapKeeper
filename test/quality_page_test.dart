@@ -83,12 +83,12 @@ void main() {
 
     expect(find.text('캡처 1장'), findsOneWidget);
     expect(find.text('저화질 1장'), findsOneWidget);
-    expect(find.text('초점 불량 1장'), findsOneWidget);
+    expect(find.text('흐림·실수 1장'), findsOneWidget);
     expect(find.textContaining('파일명이 캡처 형식'), findsOneWidget);
     expect(checkboxes(tester), [false]);
     expect(find.text('선택 0장 · 0 B'), findsOneWidget);
 
-    await tester.tap(find.text('초점 불량 1장'));
+    await tester.tap(find.text('흐림·실수 1장'));
     await tester.pumpAndSettle();
     expect(find.text('선명도 5, 기준 40 미만'), findsOneWidget);
   });

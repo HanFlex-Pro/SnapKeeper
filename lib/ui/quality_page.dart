@@ -18,7 +18,7 @@ Future<Map<QualityIssue, List<QualityCandidate>>> findQualityInBackground(
 const _tabTitles = {
   QualityIssue.screenshot: '캡처',
   QualityIssue.lowResolution: '저화질',
-  QualityIssue.blurry: '초점 불량',
+  QualityIssue.blurry: '흐림·실수',
 };
 
 /// 캡처·저화질·초점 불량 후보를 탭별로 보여 주고 지울 사진을 고른다.
@@ -139,6 +139,10 @@ class _QualityPageState extends State<QualityPage> {
                 children: [
                   for (final issue in QualityIssue.values)
                     _CandidateList(
+                      note: issue == QualityIssue.blurry
+                          ? '흐리거나 실수로 찍힌 사진 후보입니다. 하늘·안개처럼 원래 세부가 적은 사진이나 '
+                                '일부러 흐리게 찍은 사진도 섞일 수 있어, 하나씩 확인한 뒤 고르세요.'
+                          : null,
                       candidates: issues[issue]!,
                       selected: _selected,
                       onToggle: _toggle,
@@ -180,12 +184,14 @@ class _QualityPageState extends State<QualityPage> {
 
 class _CandidateList extends StatelessWidget {
   const _CandidateList({
+    this.note,
     required this.candidates,
     required this.selected,
     required this.onToggle,
     required this.onSelectAll,
   });
 
+  final String? note;
   final List<QualityCandidate> candidates;
   final Set<String> selected;
   final void Function(String path) onToggle;
@@ -202,6 +208,11 @@ class _CandidateList extends StatelessWidget {
     );
     return Column(
       children: [
+        if (note != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: Text(note!, style: Theme.of(context).textTheme.bodySmall),
+          ),
         Align(
           alignment: Alignment.centerRight,
           child: TextButton(

@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:snapkeeper/core/duplicates.dart';
 import 'package:snapkeeper/core/quality.dart';
@@ -110,12 +113,15 @@ void main() {
       expect(r[QualityIssue.blurry]!.first.reason, '선명도 5, 기준 40 미만');
     });
 
-    test('평탄한 이미지(하늘, 단색)는 제외', () {
+    test('거의 단색인 사진(빈 벽, 새까만 화면)은 실수 사진 후보', () {
       final r = findQualityIssues([
-        photo('/sky.jpg', sharpness: 2, grayStd: 3),
+        photo('/blank.jpg', sharpness: 2, grayStd: 3),
+        photo('/almost.jpg', sharpness: 900, grayStd: 9.9),
+        photo('/plain.jpg', sharpness: 900, grayStd: 10),
       ]);
 
-      expect(r[QualityIssue.blurry], isEmpty);
+      expect(names(r, QualityIssue.blurry), ['blank.jpg', 'almost.jpg']);
+      expect(r[QualityIssue.blurry]!.first.reason, '거의 단색 (밝기 편차 3)');
     });
   });
 
@@ -144,5 +150,46 @@ void main() {
     ]);
 
     expect(r.values.map((list) => list.length), [1, 1, 1]);
+  });
+
+  group('캡처 표시', () {
+    Uint8List bytes(String s) =>
+        Uint8List.fromList([...latin1.encode('xx'), ...latin1.encode(s), 0]);
+
+    test('EXIF 사용자 메모나 XMP의 Screenshot 표시를 찾는다', () {
+      expect(
+        hasScreenshotMarker(bytes('ASCII\u0000\u0000\u0000Screenshot')),
+        isTrue,
+      );
+      expect(
+        hasScreenshotMarker(
+          bytes('<exif:UserComment>Screenshot</exif:UserComment>'),
+        ),
+        isTrue,
+      );
+      expect(
+        hasScreenshotMarker(bytes('ASCII\u0000\u0000\u0000Screen')),
+        isFalse,
+      );
+      expect(
+        hasScreenshotMarker(bytes('<exif:UserComment>My Screenshot<')),
+        isFalse,
+      );
+      expect(hasScreenshotMarker(Uint8List(0)), isFalse);
+    });
+
+    test('표시가 있으면 크기나 파일명과 상관없이 캡처 후보', () {
+      final marked = PhotoRecord(
+        path: '/p/IMG_0001.JPG',
+        size: 1,
+        modified: DateTime(2024),
+        sha256: 'x',
+        width: 1125,
+        height: 913,
+        screenshotMarker: true,
+      );
+
+      expect(screenshotReason(marked), contains('캡처 표시'));
+    });
   });
 }
